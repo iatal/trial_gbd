@@ -1,0 +1,68 @@
+#Cette fonction teste, en fonction de l'input, du seuil (alpha) et des données en mémoire, s'il faut alimenter le classifieur par IntraMap ou manuellement
+#Output = FALSE si besoin d'alimentation
+#	= TRUE si pas de besoi
+#	 + MTc: table nécessaire au mapping des données
+#Nécessite library(gdata)
+#Rq: alpha = pourcentage de nrow(MMap), MMap ayant wsd et non wsd
+
+Test_ajout_MT <- function(NCTs,MMap,MT,Mtjd,alpha){
+
+	#NCTs: liste des NCTs
+	#MMap: output MetaMap pour le NCTs listés
+	#MT: données IntraMap
+	#Mtjd: données CUI_GBD_manuel
+
+	CUI <- unique(MMap$X5)
+
+	#IntraMap checking: est-ce que tous les CUIs ont été intramappés
+	#Erreur et donner liste pour IntraMap
+	if(sum(!CUI%in%MT$CUIinp)!=0) {
+		print(paste(c("nb trials = ", length(NCTs), ", alpha = ", alpha ,". Need running IntraMap for ",sum(!CUI%in%MT$CUIinp)," concepts"),collapse=""))
+		return(list(FALSE,NULL,CUI[!CUI%in%MT$CUIinp]))
+		}
+
+	MTut <- droplevels(MT[MT$CUIinp%in%CUI,])
+	gbty <- unlist(tapply(MTut$GBD,MTut$CUIinp,function(x){length(unique(x[!is.na(x)]))}))
+	nogbd <- names(gbty[gbty==0])
+	fnogbd <- unlist(lapply(nogbd,function(x){sum(MMap$X5==x)}))
+
+	#Manual work checking: est-ce que tous les cui no gbd avec freq sup alpha ont ete manuellement mappés
+	#Erreur et donner liste pour manuel
+	if(sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%Mtjd$CUIinp) !=0) {
+		print(paste(c("nb trials = ", length(NCTs), ", alpha = ", alpha ,". Need manual validation of ",sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%Mtjd$CUIinp)," concepts"),collapse=""))
+		return(list(FALSE,NULL,nogbd[fnogbd>=alpha*nrow(MMap) & !nogbd%in%Mtjd$CUIinp]))
+	}
+
+	Mtjdfalpha <- droplevels(Mtjd[Mtjd$CUIinp%in%nogbd[fnogbd>=alpha*nrow(MMap)],])
+
+	#CREATION DE MTc
+	MTc <- rbind(MT,Mtjdfalpha)
+	MTc$CUIinp <- reorder(MTc$CUIinp,sort(levels(MTc$CUIinp)))
+
+	return(list(TRUE,MTc,NULL))
+
+}
+
+#################################################
+#Test input IntraMap pour data à classifier (et non pas JDZ car uniquement pour training data)
+
+Test_ajout_MT_classif <- function(MMap,MTc){
+
+	#NCTs: liste des NCTs
+	#MMap: output MetaMap pour le NCTs listés
+	#MTc: données IntraMap+JDZ créé pendant le training
+
+	CUI <- unique(MMap$X5)
+
+	#IntraMap checking: est-ce que tous les CUIs ont été intramappés
+	#Erreur et donner liste pour IntraMap
+	if(sum(!CUI%in%MT$CUIinp)!=0) {
+		print(paste(c("nb trials = ", length(NCTs), ". Need running IntraMap for ",sum(!CUI%in%MT$CUIinp)," concepts"),collapse=""))
+		return(list(FALSE,CUI[!CUI%in%MT$CUIinp]))
+		}
+
+	return(list(TRUE,NULL))
+
+}
+
+

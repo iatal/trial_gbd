@@ -1,0 +1,51 @@
+#Fonction qui renvoit, en fonction d'un input (NCTs,MMap), en fonction de l'output du training, à savoir MTc (IntraMap donné par alpha dans training) et svm_mod: modèle svm, et en fonction de quelques paramètres: wsd_svm: utilise-t-on les données wsd pour la prédiction svm, et puis wsd_classif: utilise-t-on les données wsd pour la classification
+
+classifier <- function(NCTs,MMap,MTc,svm_mod,wsd_svm,wsd_classif){
+
+MC <- CUI_charac(MMap, MTc)
+
+#On fait le processing pour chaque essai pour wsd = yes et no
+wsd <- "Yes"
+i <- 1
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- Trial_charac(NCT,MMap,MC,wsd)
+for(i in 2:length(NCTs)){
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- rbind(D,Trial_charac(NCT,MMap,MC,wsd))
+}
+#30s pour 1500 essais
+
+Dy <- data.frame(D,row.names=NULL)
+Dy <- cbind(D,Nb_mots_chp(data))
+
+wsd <- "No"
+i <- 1
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- Trial_charac(NCT,MMap,MC,wsd)
+for(i in 2:length(NCTs)){
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- rbind(D,Trial_charac(NCT,MMap,MC,wsd))
+}
+
+Dn <- data.frame(D,row.names=NULL)
+Dn <- cbind(D,Nb_mots_chp(data))
+
+if(wsd_svm=="Yes") D <- Dy
+if(wsd_svm=="No") D <- Dn
+#Rq pas de wsd Duo car on va prédire la classif pour un seul
+#On ne prédit que pour les essais sans GBD
+D <- droplevels(D[D$Ess_GBD!="",])
+#On enlève les GBD group lists
+D <- D[,-grep("_GBD$",names(D))]
+
+is_unclear <- predict(svm_mod$best.model,D)
+
+if(wsd_classif=="Yes"){	gbd <- as.character(Dy$Ess_GBD)
+			gbd[Dy$Ess_GBD!=0][is_unclear] <- ""}
+
+if(wsd_classif=="No"){ 	gbd <- as.character(Dn$Ess_GBD)
+			gbd[Dn$Ess_GBD!=0][is_unclear] <- ""}
+
+return(gbd)
+
+}

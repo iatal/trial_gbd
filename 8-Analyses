@@ -1,0 +1,91 @@
+setwd('/media/igna/Elements/HotelDieu/Cochrane')
+data <- read.table("MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+MMap <- read.table("MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
+
+#Nb d'essais avec le concept "C1306459": primary malignant neoplasms.
+#Question: vient-il toujours avec Malignant neoplasms C0006826 ?
+
+L <- unlist(tapply(MMap$X5,MMap$NCT,function(x){"C1306459"%in%x}))
+table(L)
+#FALSE  TRUE 
+# 1411    15
+
+L2 <- unlist(tapply(MMap$X5,MMap$NCT,function(x){sum(c("C1306459","C0006826")%in%x)}))
+table(L2)
+#   0    1    2 
+#1409    2   15
+
+#Cardiotoxicity: "C0876994"
+
+L <- unlist(tapply(MMap$X5,MMap$NCT,function(x){"C0876994"%in%x}))
+
+#Courbes nouveaux concepts per trial
+CUI <- c()
+taille <- rep(NA,nrow(data))
+for(i in 1:nrow(data)){
+CUI <- unique(c(CUI,as.character(MMap$X5)[MMap$NCT==paste("pbky",tolower(data$PMID[i]),sep="")]))
+taille[i] <- length(CUI)
+}
+
+#Tous les essais avant Feb 2014
+MapN <- read.table("MetaMapBurden/NoWSD/Trial_CUI_final_table.txt")
+MapY <- read.table("MetaMapBurden/WSD/Trial_CUI_final_table.txt")
+
+MMap <- rbind(MapN,MapY)
+
+ncts <- unique(MMap$NCT)
+CUI <- c()
+taille <- rep(NA,length(ncts))
+for(i in ncts){
+CUI <- unique(c(CUI,as.character(MMap$X5)[MMap$NCT==i]))
+taille[i] <- length(CUI)
+}
+
+###############################################################################
+
+table(CL!="" & data$GBDnp=="")
+
+i <- intersect((1:nrow(data))[CL!="" & data$GBDnp==""],grep("congenital",data$condition,ignore.case=TRUE))
+i <- sample((1:nrow(data))[CL!="" & data$GBDnp==""],1)
+
+NCT <- as.character(data$PMID[i])
+
+data[i,]
+mt <- MMap[MMap$NCT==paste("pbky",tolower(NCT),sep=""),]
+MTc[MTc$CUIinp%in%mt$X5,]
+
+Mgbd$cause_name[37]
+
+
+
+
+alpha
+NCTs <- as.character(data$PMID)
+
+i <- sample(1:nrow(data),1)
+
+NCT <- as.character(data$PMID[i])
+
+MMap
+
+MC <- CUI_charac(MMap, MTc)
+
+#On fait le processing pour chaque essai pour wsd = wsd_classif
+wsd <- wsd_classif
+i <- 1
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- Trial_charac(NCT,MMap,MC,wsd)
+for(i in 2:length(NCTs)){
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- rbind(D,Trial_charac(NCT,MMap,MC,wsd))
+}
+#30s pour 1500 essais
+
+D <- data.frame(D,row.names=NULL)
+D <- cbind(D,Nb_mots_chp(data))
+
+gbd <- as.character(D$Ess_GBD)
+
+return(gbd)
+
+

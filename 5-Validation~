@@ -1,0 +1,90 @@
+setwd('/media/igna/Elements/HotelDieu/Cochrane')
+library(gdata)
+library(e1071)
+
+data <- read.table("MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+MMap <- read.table("MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
+NCTs <- as.character(data$PMID)
+
+#Upload IntraMap data
+source("/home/igna/Desktop/Programs GBD/CUI_GBD/IntraMap_upload")
+#Upload Manual JDZ data
+source("/home/igna/Desktop/Programs GBD/CUI_GBD/Manual_JDZ_upload")
+#Fonction test
+source("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/2-Test_and_creation_of_MT")
+
+alpha <- (0.1)/100
+
+A <- Test_ajout_MT(NCTs,MMap,MT,Mtjd,alpha)
+
+if(A[[1]])
+
+#Création de MTc
+MTc <- A[[2]]
+
+#Upload Egbd, Mgbd + fonction Noeud_comm, recouv, scoring...
+source("/home/igna/Desktop/Programs GBD/Fonctions/3-Fonctions_cui_gbd_sans_MT")
+#Fonctions processing
+source("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/3-Processing")
+
+#A partir de ce moment faut séparer les différents datasets
+#Et même depuis le début pour que le alpha ne tienne en compte que les essais du dataset training
+MC <- CUI_charac(MMap, MTc)
+
+#On fait le processing pour chaque essai
+#Yes WSD
+wsd <- "Yes"
+i <- 1
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- Trial_charac(NCT,MMap,MC,wsd)
+for(i in 2:length(NCTs)){
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- rbind(D,Trial_charac(NCT,MMap,MC,wsd))
+}
+#30s pour 1500 essais
+
+Dy <- data.frame(D,row.names=NULL)
+Dy <- cbind(D,Nb_mots_chp(data))
+Dy$Unclear <- factor(data$GBDnp=="")
+
+#No WSD
+wsd <- "No"
+i <- 1
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- Trial_charac(NCT,MMap,MC,wsd)
+for(i in 2:length(NCTs)){
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- rbind(D,Trial_charac(NCT,MMap,MC,wsd))
+}
+
+Dn <- data.frame(D,row.names=NULL)
+Dn <- cbind(D,Nb_mots_chp(data))
+Dn$Unclear <- factor(data$GBDnp=="")
+
+#Fonction SVM
+source("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/4-SVM")
+
+mdl <- sup_vm(Dy,Dn,TRUE,"Duo")
+
+
+
+
+pd <- predict(obj$best.model,D[!nogbd_algo,-c(grep("_GBD$",names(D)),ncol(D))])
+
+
+svm.model <- svm(Unclear ~ ., data = dtr, cost = cost, gamma = gamma)
+svm.pred <- predict(svm.model, dcv[,-ncol(dcv)])
+
+
+
+
+
+
+
+
+
+nogbd_algo <- D$Ess_GBD==""
+table(D$Unclear,nogbd)
+
+nocui <- as.numeric(as.character(D$brief_Nb_CUI)) + as.numeric(as.character(D$cond_Nb_CUI)) + as.numeric(as.character(D$off_Nb_CUI)) == 0
+

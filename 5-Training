@@ -1,0 +1,51 @@
+#Fonction qui donne MTc en fonction de alpha, et l'output du training du svm en fonction des param
+
+training <- function(data,MMap,MT,Mtjd,alpha,wsd_svm,inc_nogbd_svm,gamma,cost){
+#gamma et cost peuvent être des vecteurs, on fait un tune svm
+
+NCTs <- as.character(data$PMID)
+
+A <- Test_ajout_MT(NCTs,MMap,MT,Mtjd,alpha)
+
+if(A[[1]])
+#Création de MTc
+MTc <- A[[2]]
+#On renvoie la liste de concepts à classifier
+else return(A[[3]])
+
+#Characteristiques CUI
+MC <- CUI_charac(MMap, MTc)
+
+#On fait le processing pour chaque essai
+wsd <- "Yes"
+i <- 1
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- Trial_charac(NCT,MMap,MC,wsd)
+for(i in 2:length(NCTs)){
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- rbind(D,Trial_charac(NCT,MMap,MC,wsd))
+}
+Dy <- data.frame(D,row.names=NULL)
+Dy <- cbind(Dy,Nb_mots_chp(data))
+Dy$Unclear <- factor(data$GBDnp=="")
+
+wsd <- "No"
+i <- 1
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- Trial_charac(NCT,MMap,MC,wsd)
+for(i in 2:length(NCTs)){
+NCT <- paste("pbky",NCTs[i],sep="")
+D <- rbind(D,Trial_charac(NCT,MMap,MC,wsd))
+}
+Dn <- data.frame(D,row.names=NULL)
+Dn <- cbind(Dn,Nb_mots_chp(data))
+Dn$Unclear <- factor(data$GBDnp=="")
+
+#SVM model
+mdl <- sup_vm(Dy,Dn,inc_nogbd_svm,wsd_svm,gamma,cost)
+
+return(list(MTc,mdl))
+
+}
+
+

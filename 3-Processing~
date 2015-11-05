@@ -1,0 +1,110 @@
+#Caractéristiques des CUIs (on les calcule pour chaque bout de données)
+#MMap: données (test ou training)
+#Question: calcul de fréquence? wsd/no wsd séparés? pour validation set?
+#Question: choix de 0 pour quand pas de CUI? En partic pour la distance?
+#Question: choix de 1 pour recouvrement?
+
+CUI_charac <- function(MMap,MTc){
+
+	CUI <- sort(unique(MMap$X5))
+	#On restreint MT aux données
+	MTu <- droplevels(MTc[MTc$CUIinp%in%CUI,])
+
+	#CUI_100%NA (sans mapping manuel)
+	prop_na <- unlist(tapply(MTu$GBD,MTu$CUIinp,function(x){length(x[is.na(x)])/length(x)}))
+	#CUI_manuellement_vers_0
+	cui_0 <- unlist(tapply(MTu$GBD,MTu$CUIinp,function(x){0%in%x}))
+	#CUI_mult
+	#avec cuiinp_gbdl on supprime les GBD = 0
+	S <- lapply(CUI,function(x){cuiinp_gbdl(x,MTu)})
+	cui_mult <- unlist(lapply(S,length))
+
+	#Distance dans l'arbre GBD de chaque CUI_gbd_mult
+	#On calcule la distance comme la différence entre le level du noeud commun et le min du level de la liste
+
+	dist <- unlist(lapply(S,function(x){
+	if(length(x)==0) return(NA)
+	min(Egbd$level[Egbd$cause_name%in%as.character(Mgbd$cause_name[x])],na.rm=TRUE) - 
+	Egbd$level[Egbd$cause_name==Noeud_comm(as.character(Mgbd$cause_name[x]))]
+	}))
+
+	#Fréquence concepts: on calcule avec seulement les essais considérés
+	#On compte séparemment pour wsd et non wsd
+	cui_fq_y <- table(MMap$X5[MMap$meth=="Yes"])/sum(MMap$meth=="Yes")
+	cui_fq_n <- table(MMap$X5[MMap$meth=="No"])/sum(MMap$meth=="No")
+
+	return(data.frame(prop_na = prop_na, cui_0 = cui_0, cui_mult = cui_mult, dist = dist, fq_y = as.numeric(cui_fq_y), fq_n = as.numeric(cui_fq_n), lgbd = unlist(lapply(S,function(x){paste(x,collapse="&")}))))
+
+}
+
+#######################################################################
+#Cette fonction prend en entrée un essai, et sort l'output pour SVM + la classification GBD
+#Chacun x2: avec et sans WSD
+
+Trial_charac <- function(NCT, MMap, MC, wsd){
+
+	CUI <- rownames(MC)
+	nx <- tolower(NCT)
+	dtp <- MMap[MMap$NCT==nx & MMap$meth==wsd,]
+
+	#Charactéristiques par champ de texte
+	PC <- tapply(dtp$X5,dtp$typ,function(x){
+	#GBD du texte
+	gb <- scoring_gbd(strsplit(as.character(MC$lgbd[CUI%in%x]),"&"))
+	c(
+	#GBD
+	paste(gb,collapse="&"),
+	#nb cuis
+	length(x),
+	#nb cuis vers NA
+	sum(x%in%CUI[MC$prop_na==1]),
+	#nb de cuis manuellement vers 0
+	sum(x%in%CUI[MC$cui_0==TRUE]),
+	#nb de cuis a gbd mult
+	sum(x%in%CUI[MC$cui_mult>1]),
+	#nb cui vers 1 gbd,
+	sum(x%in%CUI[MC$cui_mult==1]),	
+	#max cui mult
+	max(c(MC$cui_mult[CUI%in%x],0),na.rm=TRUE),
+	#distance max entre gbds par concepts
+	max(c(MC$dist[CUI%in%x],0),na.rm=TRUE),
+	#nb de GBDs dans tout le texte
+	length(gb),
+	#distance entre gbds dans tout le texte (si pas de gbd = 0)
+	ifelse(length(gb)==0,0,min(Egbd$level[Egbd$cause_name%in%as.character(Mgbd$cause_name[gb])],na.rm=TRUE) - Egbd$level[Egbd$cause_name==Noeud_comm(as.character(Mgbd$cause_name[gb]))]),
+	#recouvrement GBDs entre concepts
+	recouv_gbds(strsplit(as.character(MC$lgbd[CUI%in%x]),"&")),
+	#max fréquence cuis par texte
+	ifelse(wsd=="Yes",max(MC$fq_y[CUI%in%x],0),max(MC$fq_n[CUI%in%x],0))
+	)},simplify=FALSE)
+
+	#On met 0 partout quand pas de CUI dans un champ de texte
+	PC[unlist(lapply(PC,length))==0] <- rep(list(c("",rep(0,11))),sum(unlist(lapply(PC,length))==0))
+
+	D <- c(unlist(PC),recouv_gbds(lapply(PC,function(x){unlist(strsplit(x[1],"&"))})),paste(scoring_gbd(lapply(PC,function(x){unlist(strsplit(x[1],"&"))})),collapse="&"))
+
+	names(D) <- c(paste(rep(c("brief_","cond_","off_"),each=12),c("GBD", "Nb_CUI", "Nb_NA", "Nb_0", "Nb_M", "Nb_U", "Max_M", "D_max_cui", "Nb_GBDs", "D_max_t", "Recouv", "F_max"),sep=""),"Ess_recouv","Ess_GBD")
+
+	return(D)
+
+}
+
+################################################################################"
+#Nb de mots par champ
+
+Nb_mots_chp <- function(dd){
+
+
+unlist(lapply(data$brief_title,function(x){length(unlist(strsplit(as.character(x),"[ ]+")))}))
+
+
+
+apply(data[,3:4],1,function(x){unlist(lapply(x,function(y){length(strsplit(as.character(y),"[ ]+"))}))})
+
+#condition: on fait le strsplit par " && " préalable au compte du nb de mots
+
+#	data.frame(c(length(unlist(strsplit(as.character(ddtp$brief_title[i]),"[ ]+"))),
+#	length(unlist(strsplit(as.character(ddtp$condition[i]),"[ ]+"))),
+#	length(unlist(strsplit(as.character(ddtp$official_title[i]),"[ ]+"))))
+
+
