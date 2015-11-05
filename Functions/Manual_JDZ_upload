@@ -1,0 +1,10 @@
+setwd('/media/igna/Elements/HotelDieu/Cochrane')
+
+MTJD <- read.table("MetaMapBurden/CUI_GBD/JDZ_ICD10_GBD.txt")
+MTJD3 <- read.table("MetaMapBurden/CUI_GBD/JDZ3_ICD10_GBD.txt")
+MTJD4 <- read.table("MetaMapBurden/CUI_GBD/JDZ4_ICD10_GBD.txt")
+
+Mtjd <- rbind(MTJD,MTJD3)
+Mtjd <- rbind(Mtjd,MTJD4)
+
+remove(MTJD,MTJD3,MTJD4)

@@ -1,0 +1,162 @@
+#Fonctions à utiliser dans faith pour etude features clear/unclera
+#Rqs: 	fonctions alternatives cui_gbd sont appelées non alternatives
+#	Pas de upload de MT
+#Upload Mgbd et Egbd
+
+Mgbd <- read.table("/media/igna/Elements/HotelDieu/Cochrane/GBD 2010/GBDtoICD_rk1_sansOth_apresrep_finale_updt0_plussudden_infant.txt")
+Egbd <- read.csv("/media/igna/Elements/HotelDieu/Cochrane/GBD 2010/GBD_visual/GBD_tree_for_html.csv",sep=";")
+
+##########################################################################################
+#Fonction donnant le noeud commun à une liste de gbds
+#######################################################
+
+Noeud_comm <- function(lis){
+	#input: liste de GBDs (noms)
+	L <- unique(Egbd[Egbd$cause_name %in% lis,]$level)
+	if(length(L)>1) return(Noeud_comm(unique(union(setdiff(lis,as.character(Egbd[Egbd$cause_name %in% lis & Egbd$level==max(L),]$cause_name)),as.character(Egbd[Egbd$cause_name %in% lis & Egbd$level==max(L),]$parent)))))
+	else{ if(length(lis)>1) return(Noeud_comm(unique(as.character(Egbd[Egbd$cause_name %in% lis,]$parent))))
+	else return(lis)
+	}
+}
+
+########################################################################################
+#Fonction prenant UN cui_inp et donnant la liste des gbds par imbrication gbds des cui_out en donnant la même importance aux GBDmult de même taille
+###########################################################################################
+
+cuiinp_gbdl <- function(x,MT){
+
+	#Liste des GBDs par CUIout pour x en tant que CUIinp
+	
+	#On met CUIout=CUIinp pour les is.na(MTCUIout) (venant des NoIntraMap)
+	MTp <- MT[MT$CUIinp==x,]
+	mtcuiout <- as.character(MTp$CUIout)
+	mtcuiout[is.na(MTp$CUIout)] <- as.character(MTp$CUIinp[is.na(MTp$CUIout)])
+
+	#On prend les assignation GBD des CUIout correspondant au CUIinp(on suppr No GBD)
+	L <- tapply(MTp$GBD,mtcuiout,function(x){unlist(unique(x[!is.na(x) & x!=0]))})
+	#Nb de GBDs par CUIout
+	tL <- lapply(L,length)
+	#Ensemble de GBDs uniques venant des concepts à GBD unique
+	tu <- unique(unlist(L[tL==1]))
+
+	#On les mets dans l'ordre de mas chico a mas grande: asi los q tienen menos tal vez se van a agregar primero, y los mas grandes no.
+	#Concepts à GBDmult
+	tm <- L[tL>1]
+
+	if(length(tm)>0){
+	tM <- lapply(tm,length)
+	
+	for(k in sort(unique(unlist(tM)))){
+
+	notint <- lapply(tm[tM==k],function(j){length(intersect(j,tu))}==0)
+
+	ins <- Reduce(intersect,tm[tM==k][unlist(notint)])
+	if(length(ins)>0) tu <- c(tu,ins)
+	else tu <- unique(c(tu,unlist(tm[tM==k][unlist(notint)])))
+
+	}
+
+	}
+
+	return(as.numeric(tu))
+}
+
+##################################################################################
+#Fonction prenant une liste de CUI_inp et donnant la liste des gbds par imbrication gbds des cui_inp
+###################################################################################################
+cuiinp_gbd <- function(lista,MT){
+	L <- lapply(lista,function(x){cuiinp_gbdl(x,MT)})
+	tL <- unlist(lapply(L,length))
+	#Ensemble de GBDs uniques venant des concepts à GBD unique
+	tu <- unique(unlist(L[tL==1]))
+	#On les mets dans l'ordre de mas chico a mas grande: asi los q tienen menos tal vez se van a agregar primero, y los mas grandes no.
+	#Concepts à GBDmult
+	tm <- L[tL>1]
+
+	if(length(tm)>0){
+	tM <- lapply(tm,length)
+	
+	for(k in sort(unique(unlist(tM)))){
+
+	notint <- lapply(tm[tM==k],function(j){length(intersect(j,tu))}==0)
+
+	ins <- Reduce(intersect,tm[tM==k][unlist(notint)])
+	if(length(ins)>0) tu <- c(tu,ins)
+	else tu <- unique(c(tu,unlist(tm[tM==k][unlist(notint)])))
+
+	}
+
+	}
+
+	return(as.numeric(tu))
+}
+
+#########################################
+#Fonction scoring
+#donne priorité aux plus petits (peu importe si c'est brieftitle ou condition...)
+##########################################
+scoring_gbd <- function(L){
+	tL <- unlist(lapply(L,length))
+	#Concepts à GBDmult
+	tm <- L[tL>1]
+	#Ensemble de GBDs uniques venant des concepts à GBD unique
+	tu <- unique(unlist(L[tL==1]))
+	#On les mets dans l'ordre de mas chico a mas grande: asi los q tienen menos tal vez se van a agregar primero, y los mas grandes no.
+	if(length(tm)>0){
+	tM <- lapply(tm,length)
+	
+	for(k in sort(unique(unlist(tM)))){
+
+	notint <- lapply(tm[tM==k],function(j){length(intersect(j,tu))}==0)
+
+	ins <- Reduce(intersect,tm[tM==k][unlist(notint)])
+	if(length(ins)>0) tu <- c(tu,ins)
+	else tu <- unique(c(tu,unlist(tm[tM==k][unlist(notint)])))
+
+	}
+
+	}
+	return(as.numeric(tu))
+}
+
+##############################################
+#Recouvrement
+#Pour une liste de concepts donnés, donne le pourcentage de couples de concepts tels que intersection GBD est non vide
+#############################################
+
+recouv <- function(lista,MT){
+	sm <- 0
+	nb <- 1
+	L <- lapply(lista,function(x){cuiinp_gbdl(x,MT)})
+	tL <- unlist(lapply(L,length))
+	if(sum(tL!=0)>=2){
+	tm <- L[tL>=1]
+	nb <- length(tm)*(length(tm)-1)/2
+	for(i in 1:(length(tm)-1)){
+	for(j in (i+1):length(tm)){
+	sm <- sm + as.numeric(length(intersect(tm[[i]],tm[[j]]))>0)
+	}}
+	}
+	return(sm/nb)
+}
+
+###########
+#Recouvrement pour une liste de liste de GBDs donnés (pour tester recouvrement entre champs)
+#Si un seul élément, on renvoie 1
+recouv_gbds <- function(lista){
+	sm <- 0
+	nb <- 1
+	tL <- unlist(lapply(lista,length))
+	if(sum(tL!=0)==1) return(1)
+	if(sum(tL!=0)>=2){
+	tm <- lista[tL>=1]
+	nb <- length(tm)*(length(tm)-1)/2
+	for(i in 1:(length(tm)-1)){
+	for(j in (i+1):length(tm)){
+	sm <- sm + as.numeric(length(intersect(tm[[i]],tm[[j]]))>0)
+	}}
+	}
+	return(sm/nb)
+}
+
+

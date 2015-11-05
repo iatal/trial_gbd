@@ -1,0 +1,25 @@
+#Upload données de UMLS + IntraMap
+#Et met NA dans le GBD des mapping 'Other'
+
+setwd('/media/igna/Elements/HotelDieu/Cochrane')
+
+MTUM <- read.table("MetaMapBurden/CUI_GBD/UMLS_ICD10_GBD.txt")
+MTIM <- read.table("MetaMapBurden/CUI_GBD/IntraMap_ICD10_GBD.txt")
+MTIM4 <- read.table("MetaMapBurden/CUI_GBD/IntraMap4_ICD10_GBD.txt")
+MTIM5 <- read.table("MetaMapBurden/CUI_GBD/IntraMap5_ICD10_GBD.txt")
+MTIM6 <- read.table("MetaMapBurden/CUI_GBD/IntraMap6_ICD10_GBD.txt")
+MTIM7 <- read.table("MetaMapBurden/CUI_GBD/IntraMap7_ICD10_GBD.txt")
+
+MTIM$GBD[MTIM$Map_type=="O"] <- NA
+MTIM4$GBD[MTIM4$Map_type=="O"] <- NA
+MTIM5$GBD[MTIM5$Map_type=="O"] <- NA
+MTIM6$GBD[MTIM6$Map_type=="O"] <- NA
+MTIM7$GBD[MTIM7$Map_type=="O"] <- NA
+
+MT <- rbind(MTUM,MTIM)
+MT <- rbind(MT,MTIM4)
+MT <- rbind(MT,MTIM5)
+MT <- rbind(MT,MTIM6)
+MT <- rbind(MT,MTIM7)
+
+remove(MTUM,MTIM,MTIM4,MTIM5,MTIM6,MTIM7)

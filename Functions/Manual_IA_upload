@@ -1,0 +1,56 @@
+#Réparations manuelles à MT suite à des observations
+#Nécessite upload de MT IntraMap
+
+setwd('/media/igna/Elements/HotelDieu/Cochrane')
+
+#1-Ajout Edentulism: NoICDcode et peu fréquent
+
+Mgbd <- read.table("GBD 2010/GBDtoICD_rk1_sansOth_apresrep_finale_updt0.txt")
+
+AJ <- data.frame(	CUIinp = "C0949179",
+			Map_type = "manuel_IA",
+			CUIout = "C0949179",
+			ICD = "NoICDcode",
+			GBD = grep("Edentulism",Mgbd$cause_name),
+			Pbs = NA)
+
+
+#2- On change l'Intramap du Concept C1306459 = Primary malignant neoplasms
+#Car envoyé par Intramap vers: Concept C0348374 = Malignant neoplasm of central nervous system, unspecified
+#On remplace l'output IntraMap par "C0006826": Malignant neoplasms, envoyé par IntraMap vers tous les cancers
+MT <- MT[-which(MT$CUIinp=="C1306459"),]
+
+AJ <- rbind(AJ, data.frame(CUIinp = "C1306459",
+			Map_type = "manuel_IA",
+			CUIout = "C1306459",
+			ICD = NA,
+			GBD = NA,
+			Pbs = NA))
+
+#3- On enlève le Concept C0876994 = Cardiotoxicity
+#Car envoyé par Intramap vers: Concept C0409910 = Drug-induced gout
+
+MT <- MT[-which(MT$CUIinp=="C0876994"),]
+
+AJ <- rbind(AJ, data.frame(CUIinp = "C0876994",
+			Map_type = "manuel_IA",
+			CUIout = "C0876994",
+			ICD = NA,
+			GBD = NA,
+			Pbs = NA))
+
+#4- On enlève HIV du mapping venant du concept "Neoplasms"
+grep("HIV",Mgbd$cause_name)
+
+#Malignant neoplasms: "C0006826"
+
+MT[MT$CUIinp=="C0027651" & ,]
+
+S <- unlist(tapply(MT$GBD,MT$CUIout,function(x){length(unique(x[!is.na(x)]))}))
+S[S>20]
+
+"C0694449"
+
+
+MT <- rbind(MT,Edent)
+
