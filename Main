@@ -1,49 +1,53 @@
-setwd('/media/igna/Elements/HotelDieu/Cochrane')
+#Main: upload functions, leaves everything ready to conduct the classification of a data/MMap file
+#						and to evaluate the performances
+#Depending on the taxonomy desired, on alpha, on WSD
+
+setwd('/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD')
 library(gdata)
 library(e1071)
-#Upload IntraMap data
-source("/home/igna/Desktop/Programs GBD/CUI_GBD/IntraMap_upload")
-#Upload Manual JDZ data
-source("/home/igna/Desktop/Programs GBD/CUI_GBD/Manual_JDZ_upload")
-#Fonction test et creation MT
-source("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/2-Test_and_creation_of_MT")
-#Upload Egbd, Mgbd + fonction Noeud_comm, recouv, scoring...
-source("/home/igna/Desktop/Programs GBD/Fonctions/3-Fonctions_cui_gbd_sans_MT")
-#Fonctions processing
-source("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/3-Processing")
-#Fonction SVM
-source("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/4-SVM")
-#Fonction Training
-source("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/5-Training")
-#Fonction Classifier
-source("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/6-Classifier")
-#Evaluation metrics
-source("/home/igna/Desktop/Programs GBD/Fonctions/2bis-Evaluation_metrics_classifier")
 
-data <- read.table("MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
-MMap <- read.table("MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
+#Functions Upload: on upload que les fonctions non temporaires (fichiers finissant par un ~)
+for(x in list.files("./Functions","[a-zA-Z]$")) source(paste("./Functions/",x,sep=""))
+##########################################################################################################
 
-#######################################################
+#Taxonomy choice
+Tax <- "DL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
+
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
+
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
+
+L <- Data_upl(Tax)
+
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
+
+#Alpha choice
 alpha <- (0.2)/100
-
-WS <- c("Yes","No","Duo")
-ING <- c(TRUE,FALSE)
-WC <- c("Yes","No")
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
 gamma <- 0.1
 cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- FALSE
 
+#Manque: only condition vs all fields choice
+
+#Mettre le K-fold cross validation dans un programme
 K <- 10
 set.seed(7212)
 x <- sample(1:nrow(data))
 L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
-P_c <- c()
-R_c <- c()
-Sp_c <- c()
-R_t <- c()
-P_t <- c()
-SA_t <- c()
-
+Ptot <- c()
 t0 <- proc.time()
 for(i in 1:K){
 #i <- sample(1:10,1)
@@ -56,585 +60,772 @@ tsdt <- data[unlist(L[i]),]
 NCTsts <- tolower(as.character(tsdt$PMID))
 Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
 
-for(wsd_svm in WS){
-for(inc_nogbd_svm in ING){
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost)
 
-TR <- training(trdt,Mtr,MT,Mtjd,alpha,wsd_svm,inc_nogbd_svm,gamma,cost)
 MTc <- TR[[1]]
-svm_mod <- TR[[2]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
 
-for(wsd_classif in WC){
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong)
 
-CL <- classifier(tsdt,Mts,MTc,svm_mod,wsd_classif)
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
 
-P_c <- c(P_c,Prec_class(CL!="",tsdt$GBDnp!=""))
-R_c <- c(R_c,Rec_class(CL!="",tsdt$GBDnp!=""))
-Sp_c <- c(Sp_c,Spec_class(CL!="",tsdt$GBDnp!=""))
-
-algo <- strsplit(CL,"&")
-tst <- strsplit(as.character(tsdt$GBDnp),"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
-
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
-
+Ptot <- c(Ptot,PERF)
 }
-}
-}
-}
+#1.7min per i
+#5.7min en tout
 t1 <- proc.time()
-#Pour 1 param svm: 45 minutes pour les 10 fold et tous les param classifier
-#3.4min pour, avec 1 param svm, faire 1 fold validation, avec tous les param classifier
-#3 min pour 5*10 param, 1 fold validation
-#gamma <- (3:8)/20
-#cost <- 2^(0:4)
-#gamma <- (8:12)/100
-#cost <- (17:25)*5
 
-P_C <- matrix(P_c,ncol=12,byrow=TRUE)
-Sp_C <- matrix(Sp_c,ncol=12,byrow=TRUE)
-R_C <- matrix(R_c,ncol=12,byrow=TRUE)
-P_T <- matrix(P_t,ncol=12,byrow=TRUE)
-R_T <- matrix(R_t,ncol=12,byrow=TRUE)
-SA_T <- matrix(SA_t,ncol=12,byrow=TRUE)
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7503720 0.7708852 0.7167108
+#[2,] 0.1250022 0.5005388 0.5259056 0.4688938 0.7860549 0.8053822 0.7529838
+#[3,] 0.1575982 0.5050520 0.5689037 0.4316221 0.7960994 0.8084986 0.7697272
+#[4,] 0.0000000        NA        NA        NA 0.7398517 0.7582583 0.7080751
+#[5,] 0.1250022 0.4537435 0.4656648 0.4343096 0.7822333 0.8015606 0.7491623
+#[6,] 0.1575982 0.4620993 0.5138065 0.3996644 0.7921561 0.8045553 0.7657840
 
-Valid <- data.frame( 	wsd_svm = rep(WS,each=4),
-			svm_first = rep(rep(ING,each=length(WC)),length(WS)),
-			wsd_clas = rep(WC,length(ING)*length(WS)),
-			Prec_clas = apply(P_C,2,mean),
-			Sp_clas = apply(Sp_C,2,mean),
-			Rec_clas = apply(R_C,2,mean),
-			Prec_tr = apply(P_T,2,mean),
-			Rec_tr = apply(R_T,2,mean),
-			SAcc_tr = apply(SA_T,2,mean))
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.8798865 0.4771439
 
-Valid <- Valid[order(Valid$svm_first,Valid$wsd_svm,Valid$wsd_clas),]
-Valid <- Valid[,c(2,1,3:ncol(Valid))]
+#############################################################################
+#Taxonomy choice
+Tax <- "RL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-write.csv(Valid,"MetaMapBurden/Trial_Burden_Param/Validation_table.csv")
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 
-##################################################################################
-#Pas de SVM
-###########
-V <- read.csv("MetaMapBurden/Trial_Burden_Param/Validation_table.csv")
-V <- V[,-1]
-V$alpha <- 0.2/100
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
 
-alpha <- 0.2/100
-NCTs <- as.character(data$PMID)
-A <- Test_ajout_MT(NCTs,MMap,MT,Mtjd,alpha)
-MTc <- A[[2]]
-WC <- c("Yes","No")
+L <- Data_upl(Tax)
 
-P_c <- c()
-Sp_c <- c()
-R_c <- c()
-R_t <- c()
-P_t <- c()
-SA_t <- c()
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
 
-for(wsd_classif in WC){
+#Alpha choice
+alpha <- (0.2)/100
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
+gamma <- 0.1
+cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- FALSE
 
-CL <- classifier_nosvm(data,MMap,MTc,wsd_classif)
+#Manque: only condition vs all fields choice
 
-P_c <- c(P_c,Prec_class(CL!="",data$GBDnp!=""))
-R_c <- c(R_c,Rec_class(CL!="",data$GBDnp!=""))
-Sp_c <- c(Sp_c,Spec_class(CL!="",data$GBDnp!=""))
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
-algo <- strsplit(CL,"&")
-tst <- strsplit(as.character(data$GBDnp),"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
 
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
 
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
 }
+#1.7min per i
+t1 <- proc.time()
+#4min en tout
 
-V2 <- data.frame( 	svm_first = "NoSVM",
-			wsd_svm = "All_trials",
-			wsd_clas = WC,
-			Prec_clas = P_c,
-			Sp_clas = Sp_c,
-			Rec_clas = R_c,
-			Prec_tr = P_t,
-			Rec_tr = R_t,
-			SAcc_tr = SA_t,
-			alpha = alpha)
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7526813 0.7654427 0.6867770
+#[2,] 0.1143841 0.5113239 0.5422657 0.4724506 0.7823418 0.7925845 0.7132524
+#[3,] 0.1815276 0.4902745 0.5775799 0.4079087 0.8084302 0.8047403 0.7461310
+#[4,] 0.0000000        NA        NA        NA 0.7428285 0.7557372 0.6801369
+#[5,] 0.1143841 0.4523962 0.4775144 0.4286344 0.7784980 0.7898138 0.7109423
+#[6,] 0.1815276 0.4541586 0.5377177 0.3811905 0.8051111 0.8026210 0.7445233
 
-####################################################################
-#Only non-unclear trials
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.8507005 0.7418631
 
-dt <- droplevels(data[data$GBDnp!="",])
-MMapt <- droplevels(MMap[MMap$NCT%in%paste("pbky",tolower(dt$PMID),sep=""),])
+###################################################################################
+#inc_nogbd_svm = TRUE
+###################################################################################
 
-NCTs <- as.character(dt$PMID)
-A <- Test_ajout_MT(NCTs,MMapt,MT,Mtjd,alpha)
-MTc <- A[[2]]
-WC <- c("Yes","No")
+#Taxonomy choice
+Tax <- "DL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-P_c <- c()
-Sp_c <- c()
-R_c <- c()
-R_t <- c()
-P_t <- c()
-SA_t <- c()
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 
-for(wsd_classif in WC){
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
 
-CL <- classifier_nosvm(dt,MMapt,MTc,wsd_classif)
+L <- Data_upl(Tax)
 
-P_c <- c(P_c,Prec_class(CL!="",dt$GBDnp!=""))
-R_c <- c(R_c,Rec_class(CL!="",dt$GBDnp!=""))
-Sp_c <- c(Sp_c,Spec_class(CL!="",dt$GBDnp!=""))
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
 
-algo <- strsplit(CL,"&")
-tst <- strsplit(as.character(dt$GBDnp),"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
+#Alpha choice
+alpha <- (0.2)/100
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
+gamma <- 0.1
+cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- TRUE
 
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
+#Manque: only condition vs all fields choice
 
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
+
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
+
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
+
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
 }
+#4min en tout
+t1 <- proc.time()
 
-V3 <- data.frame( 	svm_first = "NoSVM",
-			wsd_svm = "Only_Non_unclear",
-			wsd_clas = WC,
-			Prec_clas = P_c,
-			Sp_clas = Sp_c,
-			Rec_clas = R_c,
-			Prec_tr = P_t,
-			Rec_tr = R_t,
-			SAcc_tr = SA_t,
-			alpha = alpha)
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7503720 0.7708852 0.7167108
+#[2,] 0.1250022 0.5005388 0.5259056 0.4688938 0.7860549 0.8053822 0.7529838
+#[3,] 0.1575982 0.5050520 0.5689037 0.4316221 0.7960994 0.8084986 0.7697272
+#[4,] 0.0000000        NA        NA        NA 0.7391829 0.7572583 0.7080706
+#[5,] 0.1250022 0.4514203 0.4633416 0.4347641 0.7818517 0.8007973 0.7491623
+#[6,] 0.1575982 0.4587452 0.5085294 0.4005061 0.7921561 0.8045553 0.7657840
 
-####################################################
-#Only non-unclear and mapped trials
 
-R_t <- c()
-P_t <- c()
-SA_t <- c()
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.9268919 0.3054821
 
-for(wsd_classif in WC){
+#############################################################################
+#Taxonomy choice
+Tax <- "RL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-CL <- classifier_nosvm(dt,MMapt,MTc,wsd_classif)
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 
-tst <- as.character(dt$GBDnp)[CL!=""]
-CL <- CL[CL!=""]
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
 
-algo <- strsplit(CL,"&")
-tst <- strsplit(tst,"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
+L <- Data_upl(Tax)
 
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
 
+#Alpha choice
+alpha <- (0.2)/100
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
+gamma <- 0.1
+cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- TRUE
+
+#Manque: only condition vs all fields choice
+
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
+
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
+
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
+
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
 }
+#1.7min per i
+t1 <- proc.time()
+#4.5min en tout
 
-V4 <- data.frame( 	svm_first = "NoSVM",
-			wsd_svm = "Only_Non_unclear_non_mapped",
-			wsd_clas = WC,
-			Prec_clas = NA,
-			Sp_clas = NA,
-			Rec_clas = NA,
-			Prec_tr = P_t,
-			Rec_tr = R_t,
-			SAcc_tr = SA_t,
-			alpha = alpha)
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7526813 0.7654427 0.6867770
+#[2,] 0.1143841 0.5113239 0.5422657 0.4724506 0.7823418 0.7925845 0.7132524
+#[3,] 0.1815276 0.4902745 0.5775799 0.4079087 0.8084302 0.8047403 0.7461310
+#[4,] 0.0000000        NA        NA        NA 0.7421530 0.7553929 0.6801236
+#[5,] 0.1143841 0.4495829 0.4747011 0.4258211 0.7784697 0.7901531 0.7116493
+#[6,] 0.1815276 0.4520865 0.5356456 0.3791184 0.8051224 0.8030230 0.7453159
 
-###################################################
-#Only mapped trials
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.8907353 0.5645949
 
-NCTs <- as.character(data$PMID)
-A <- Test_ajout_MT(NCTs,MMap,MT,Mtjd,alpha)
-MTc <- A[[2]]
-WC <- c("Yes","No")
+##################################################################################################
+#CONDITION PRIORITY
+##################################################################################################
+#Taxonomy choice
+Tax <- "DL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-P_c <- c()
-Sp_c <- c()
-R_c <- c()
-R_t <- c()
-P_t <- c()
-SA_t <- c()
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 
-for(wsd_classif in WC){
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
 
-CL <- classifier_nosvm(data,MMap,MTc,wsd_classif)
+L <- Data_upl(Tax)
 
-tst <- as.character(data$GBDnp)[CL!=""]
-CL <- CL[CL!=""]
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
 
-P_c <- c(P_c,Prec_class(CL!="",tst!=""))
-R_c <- c(R_c,Rec_class(CL!="",tst!=""))
-Sp_c <- c(Sp_c,Spec_class(CL!="",tst!=""))
+#Alpha choice
+alpha <- (0.2)/100
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
+gamma <- 0.1
+cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- FALSE
+COND <- TRUE
 
-algo <- strsplit(CL,"&")
-tst <- strsplit(tst,"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
+#Manque: only condition vs all fields choice
 
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
+
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
+
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
 }
+#1.7min per i
+#5.7min en tout
+t1 <- proc.time()
 
-V42 <- data.frame( 	svm_first = "NoSVM",
-			wsd_svm = "Only_mapped",
-			wsd_clas = WC,
-			Prec_clas = P_c,
-			Sp_clas = Sp_c,
-			Rec_clas = R_c,
-			Prec_tr = P_t,
-			Rec_tr = R_t,
-			SAcc_tr = SA_t,
-			alpha = alpha)
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7571917 0.7695541 0.7300132
+#[2,] 0.1289978 0.5155332 0.5320099 0.4855410 0.7932540 0.8045780 0.7671444
+#[3,] 0.1509536 0.5202023 0.5523402 0.4680001 0.7993290 0.8078856 0.7765837
+#[4,] 0.0000000        NA        NA        NA 0.7462270 0.7569272 0.7207108
+#[5,] 0.1289978 0.4623703 0.4682409 0.4429842 0.7901654 0.8014894 0.7640558
+#[6,] 0.1509536 0.4736282 0.4961181 0.4310740 0.7961723 0.8047289 0.7734271
 
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.8798865 0.4771439
 
-#####################################################################
-#Min alpha pour tout MMap
+#############################################################################
+#Taxonomy choice
+Tax <- "RL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-CUI <- unique(MMap$X5)
-MTut <- droplevels(MT[MT$CUIinp%in%CUI,])
-gbty <- unlist(tapply(MTut$GBD,MTut$CUIinp,function(x){length(unique(x[!is.na(x)]))}))
-nogbd <- names(gbty[gbty==0])
-fnogbd <- unlist(lapply(nogbd,function(x){sum(MMap$X5==x)}))
-max(fnogbd[!nogbd%in%Mtjd$CUIinp])/nrow(MMap)
-alpha = 0.8/1000
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 
-NCTs <- as.character(data$PMID)
-A <- Test_ajout_MT(NCTs,MMap,MT,Mtjd,alpha)
-MTc <- A[[2]]
-WC <- c("Yes","No")
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
 
-P_c <- c()
-Sp_c <- c()
-R_c <- c()
-R_t <- c()
-P_t <- c()
-SA_t <- c()
+L <- Data_upl(Tax)
 
-for(wsd_classif in WC){
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
 
-CL <- classifier_nosvm(data,MMap,MTc,wsd_classif)
+#Alpha choice
+alpha <- (0.2)/100
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
+gamma <- 0.1
+cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- FALSE
+COND <- TRUE
 
-P_c <- c(P_c,Prec_class(CL!="",data$GBDnp!=""))
-R_c <- c(R_c,Rec_class(CL!="",data$GBDnp!=""))
-Sp_c <- c(Sp_c,Spec_class(CL!="",data$GBDnp!=""))
+#Manque: only condition vs all fields choice
 
-algo <- strsplit(CL,"&")
-tst <- strsplit(as.character(data$GBDnp),"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
 
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
+
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
 }
+#1.7min per i
+t1 <- proc.time()
+#4min en tout
 
-V5 <- data.frame( 	svm_first = "NoSVM",
-			wsd_svm = "All_trials",
-			wsd_clas = WC,
-			Prec_clas = P_c,
-			Sp_clas = Sp_c,
-			Rec_clas = R_c,
-			Prec_tr = P_t,
-			Rec_tr = R_t,
-			SAcc_tr = SA_t,
-			alpha = alpha)
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7617239 0.7638423 0.7027373
+#[2,] 0.1230375 0.5057095 0.5283948 0.4761418 0.7954584 0.7946172 0.7324827
+#[3,] 0.1669227 0.5012982 0.5493175 0.4372867 0.8114964 0.8041842 0.7530840
+#[4,] 0.0000000        NA        NA        NA 0.7515378 0.7541369 0.6954305
+#[5,] 0.1230375 0.4410121 0.4604359 0.4239938 0.7931572 0.7934177 0.7317474
+#[6,] 0.1669227 0.4627365 0.5078488 0.4081288 0.8082672 0.8021187 0.7515057
 
-#############################################################
-#Only non-unclear trials
-#Min alpha pour MMapt
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.8507005 0.7418631
 
-dt <- droplevels(data[data$GBDnp!="",])
-MMapt <- droplevels(MMap[MMap$NCT%in%paste("pbky",tolower(dt$PMID),sep=""),])
 
-CUI <- unique(MMapt$X5)
+#########################################################################################
+#ONLY CONDITION FIELD
+#########################################################################################
+#Taxonomy choice
+Tax <- "DL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-MTut <- droplevels(MT[MT$CUIinp%in%CUI,])
-gbty <- unlist(tapply(MTut$GBD,MTut$CUIinp,function(x){length(unique(x[!is.na(x)]))}))
-nogbd <- names(gbty[gbty==0])
-fnogbd <- unlist(lapply(nogbd,function(x){sum(MMapt$X5==x)}))
-max(fnogbd[!nogbd%in%Mtjd$CUIinp])/nrow(MMapt)
-alpha = 0.75/1000
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 
-NCTs <- as.character(dt$PMID)
-A <- Test_ajout_MT(NCTs,MMapt,MT,Mtjd,alpha)
-MTc <- A[[2]]
-WC <- c("Yes","No")
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
 
-P_c <- c()
-Sp_c <- c()
-R_c <- c()
-R_t <- c()
-P_t <- c()
-SA_t <- c()
+L <- Data_upl(Tax)
 
-for(wsd_classif in WC){
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
 
-CL <- classifier_nosvm(dt,MMapt,MTc,wsd_classif)
+#Alpha choice
+alpha <- (0.2)/100
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
+gamma <- 0.1
+cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- FALSE
+COND_only <- TRUE
 
-P_c <- c(P_c,Prec_class(CL!="",dt$GBDnp!=""))
-R_c <- c(R_c,Rec_class(CL!="",dt$GBDnp!=""))
-Sp_c <- c(Sp_c,Spec_class(CL!="",dt$GBDnp!=""))
+#Manque: only condition vs all fields choice
 
-algo <- strsplit(CL,"&")
-tst <- strsplit(as.character(dt$GBDnp),"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
 
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
+
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND_only=COND_only)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND_only=COND_only)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
 }
+#1.7min per i
+#5.7min en tout
+t1 <- proc.time()
 
-V6 <- data.frame( 	svm_first = "NoSVM",
-			wsd_svm = "Only_Non_unclear",
-			wsd_clas = WC,
-			Prec_clas = P_c,
-			Sp_clas = Sp_c,
-			Rec_clas = R_c,
-			Prec_tr = P_t,
-			Rec_tr = R_t,
-			SAcc_tr = SA_t,
-			alpha = alpha)
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7420277 0.7645563 0.7133775
+#[2,] 0.1396380 0.4730669 0.4844419 0.4480515 0.7859314 0.8099701 0.7569225
+#[3,] 0.1649183 0.4822134 0.5309139 0.4288765 0.7931318 0.8104648 0.7694454
+#[4,] 0.0000000        NA        NA        NA 0.7290675 0.7499338 0.7020795
+#[5,] 0.1396380 0.4036966 0.4045737 0.3891790 0.7828215 0.8068602 0.7538126
+#[6,] 0.1649183 0.4241484 0.4636314 0.3800289 0.7899637 0.8072968 0.7662774
 
-####################################################
-#Only non-unclear and mapped trials
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.8456557 0.5381716
 
-R_t <- c()
-P_t <- c()
-SA_t <- c()
+#############################################################################
+#Taxonomy choice
+Tax <- "RL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-for(wsd_classif in WC){
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 
-CL <- classifier_nosvm(dt,MMapt,MTc,wsd_classif)
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
 
-tst <- as.character(dt$GBDnp)[CL!=""]
-CL <- CL[CL!=""]
+L <- Data_upl(Tax)
 
-algo <- strsplit(CL,"&")
-tst <- strsplit(tst,"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
 
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
+#Alpha choice
+alpha <- (0.2)/100
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
+gamma <- 0.1
+cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- FALSE
+COND_only <- TRUE
 
+#Manque: only condition vs all fields choice
+
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
+
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
+
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
+
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND_only=COND_only)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND_only=COND_only)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
 }
+#1.7min per i
+t1 <- proc.time()
+#4min en tout
 
-V7 <- data.frame( 	svm_first = "NoSVM",
-			wsd_svm = "Only_Non_unclear_non_mapped",
-			wsd_clas = WC,
-			Prec_clas = NA,
-			Sp_clas = NA,
-			Rec_clas = NA,
-			Prec_tr = P_t,
-			Rec_tr = R_t,
-			SAcc_tr = SA_t,
-			alpha = alpha)
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7375116 0.7654599 0.6860883
+#[2,] 0.1290110 0.4793672 0.4941024 0.4573183 0.7749541 0.8044986 0.7192379
+#[3,] 0.1848653 0.4461530 0.5632421 0.3955156 0.8022316 0.8095567 0.7507713
+#[4,] 0.0000000        NA        NA        NA 0.7279921 0.7558286 0.6787815
+#[5,] 0.1290110 0.4147739 0.4264735 0.4051358 0.7734329 0.8033591 0.7184801
+#[6,] 0.1848653 0.4070758 0.5213548 0.3651126 0.7998211 0.8075594 0.7491873
 
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.8117611 0.8085058
 
-#####################################################################
-#No SVM, Emdin ou JDZ uniquement
+##################################################################################################
+#ALPHA = 0.05 avec condition priority
+##################################################################################################
+#Taxonomy choice
+Tax <- "DL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-#Input: working folders
-wk_fd <- c("MetaMapBurden/Emdin_validation/Ajout_OMS/","MachineLearning/Classif_Unclassif/")
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 
-for(f in 1:length(wk_fd)){
-#OUTPUT METAMAP
-TN <- read.table(paste(wk_fd[f],"NoWSD/NCT_total_table.txt",sep=""))
-TW <- read.table(paste(wk_fd[f],"WSD/NCT_total_table.txt",sep=""))
-TN$meth <- "No"
-TW$meth <- "Yes"
-MMtp <- rbind(TN,TW)
-write.table(MMtp,paste(wk_fd[f],"MMap_tot.txt",sep=""))
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
 
-#TRIAL_ID et GBDnp
-dtp <- read.table(paste(wk_fd[f],"NCT_data.txt",sep=""))
-if("Trial"%in%names(dtp)){	dtp$PMID <- dtp$Trial
-				dtp$NCT <- dtp$Trial	}
-dtp <- dtp[,c("NCT","PMID","brief_title","official_title","condition","GBDnp")]
-#duplicated(emdin)
-dtp <- droplevels(dtp[!duplicated(dtp$NCT),])
-write.table(dtp,paste(wk_fd[f],"NCT_data_tot.txt",sep=""))
+L <- Data_upl(Tax)
+
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
+
+#Alpha choice
+alpha <- (0.5)/100
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
+gamma <- 0.1
+cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- FALSE
+COND <- TRUE
+
+#Manque: only condition vs all fields choice
+
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
+
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
+
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
+
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
 }
-#Rq: dans les fonctions, il faut reordoner les factors des CUIs dès le début
+#1.7min per i
+#5.7min en tout
+t1 <- proc.time()
 
-alpha <- 0.2/100
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7571917 0.7695541 0.7300132
+#[2,] 0.1615982 0.4712494 0.4908128 0.4544637 0.8121482 0.8225228 0.7838556
+#[3,] 0.1782252 0.4707235 0.5027570 0.4343789 0.8197016 0.8271507 0.7949413
+#[4,] 0.0000000        NA        NA        NA 0.7468893 0.7575894 0.7213731
+#[5,] 0.1615982 0.4299585 0.4410680 0.4216268 0.8096110 0.8199856 0.7813184
+#[6,] 0.1782252 0.4318459 0.4560222 0.4033584 0.8171184 0.8245675 0.7923581
 
-P_c <- c()
-Sp_c <- c()
-R_c <- c()
-R_t <- c()
-P_t <- c()
-SA_t <- c()
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.8799358 0.4771439
 
-for(f in wk_fd){
-dt <- read.table(paste(f,"NCT_data_tot.txt",sep=""))
-MMapt <- read.table(paste(f,"MMap_tot.txt",sep=""))
+#############################################################################
+#Taxonomy choice
+Tax <- "RL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-NCTs <- as.character(dt$PMID)
-A <- Test_ajout_MT(NCTs,MMapt,MT,Mtjd,alpha)
-MTc <- A[[2]]
-WC <- c("Yes","No")
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 
-for(wsd_classif in WC){
+#UMLS_ICD Upload
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
 
-CL <- classifier_nosvm(dt,MMapt,MTc,wsd_classif)
+L <- Data_upl(Tax)
 
-P_c <- c(P_c,Prec_class(CL!="",dt$GBDnp!=""))
-R_c <- c(R_c,Rec_class(CL!="",dt$GBDnp!=""))
-Sp_c <- c(Sp_c,Spec_class(CL!="",dt$GBDnp!=""))
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
 
-algo <- strsplit(CL,"&")
-tst <- strsplit(as.character(dt$GBDnp),"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
+#Alpha choice
+alpha <- (0.5)/100
+#Wsd choice
+wsd <- "Yes"
+#Gamma and cost choice
+#Manque: mettre des gamma et cost différent par SVM
+gamma <- 0.1
+cost <- 110
+#Including NoGBD for SVM_unclear choice
+inc_nogbd_svm <- FALSE
+COND <- TRUE
 
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
+#Manque: only condition vs all fields choice
 
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
+
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
+
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
+
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
 }
-}
+#1.7min per i
+t1 <- proc.time()
+#4min en tout
 
-V8 <- data.frame( 	svm_first = "NoSVM",
-			wsd_svm = rep(c("Emdin","JDZ"),each=2),
-			wsd_clas = rep(WC,2),
-			Prec_clas = P_c,
-			Sp_clas = Sp_c,
-			Rec_clas = R_c,
-			Prec_tr = P_t,
-			Rec_tr = R_t,
-			SAcc_tr = SA_t,
-			alpha = alpha)
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7527447 0.7553591 0.6934437
+#[2,] 0.2087682 0.5298741 0.5502586 0.5123043 0.8103903 0.8084211 0.7401176
+#[3,] 0.2586490 0.5079013 0.5441789 0.4661757 0.8376034 0.8289964 0.7721749
+#[4,] 0.0000000        NA        NA        NA 0.7412296 0.7446559 0.6854702
+#[5,] 0.2087682 0.4907082 0.5105717 0.4830419 0.8051641 0.8043971 0.7366311
+#[6,] 0.2586490 0.4838982 0.5197416 0.4501919 0.8302209 0.8228966 0.7666443
 
-#Avec alpha_min
-P_c <- c()
-Sp_c <- c()
-R_c <- c()
-R_t <- c()
-P_t <- c()
-SA_t <- c()
-Al <- c()
-
-f <- wk_fd[1]
-
-dt <- read.table(paste(f,"NCT_data_tot.txt",sep=""))
-MMapt <- read.table(paste(f,"MMap_tot.txt",sep=""))
-
-CUI <- unique(MMapt$X5)
-MTut <- droplevels(MT[MT$CUIinp%in%CUI,])
-gbty <- unlist(tapply(MTut$GBD,MTut$CUIinp,function(x){length(unique(x[!is.na(x)]))}))
-nogbd <- names(gbty[gbty==0])
-fnogbd <- unlist(lapply(nogbd,function(x){sum(MMapt$X5==x)}))
-alpha = max(fnogbd[!nogbd%in%Mtjd$CUIinp])/nrow(MMapt)
-alpha = 0.00165
-
-Al <- c(Al,alpha)
-
-NCTs <- as.character(dt$PMID)
-A <- Test_ajout_MT(NCTs,MMapt,MT,Mtjd,alpha)
-MTc <- A[[2]]
-WC <- c("Yes","No")
-
-for(wsd_classif in WC){
-
-CL <- classifier_nosvm(dt,MMapt,MTc,wsd_classif)
-
-P_c <- c(P_c,Prec_class(CL!="",dt$GBDnp!=""))
-R_c <- c(R_c,Rec_class(CL!="",dt$GBDnp!=""))
-Sp_c <- c(Sp_c,Spec_class(CL!="",dt$GBDnp!=""))
-
-algo <- strsplit(CL,"&")
-tst <- strsplit(as.character(dt$GBDnp),"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
-
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
-
-}
-
-f <- wk_fd[2]
-
-dt <- read.table(paste(f,"NCT_data_tot.txt",sep=""))
-MMapt <- read.table(paste(f,"MMap_tot.txt",sep=""))
-
-CUI <- unique(MMapt$X5)
-MTut <- droplevels(MT[MT$CUIinp%in%CUI,])
-gbty <- unlist(tapply(MTut$GBD,MTut$CUIinp,function(x){length(unique(x[!is.na(x)]))}))
-nogbd <- names(gbty[gbty==0])
-fnogbd <- unlist(lapply(nogbd,function(x){sum(MMapt$X5==x)}))
-alpha = max(fnogbd[!nogbd%in%Mtjd$CUIinp])/nrow(MMapt)
-alpha = 0.001
-
-Al <- c(Al,alpha)
-
-NCTs <- as.character(dt$PMID)
-A <- Test_ajout_MT(NCTs,MMapt,MT,Mtjd,alpha)
-MTc <- A[[2]]
-WC <- c("Yes","No")
-
-for(wsd_classif in WC){
-
-CL <- classifier_nosvm(dt,MMapt,MTc,wsd_classif)
-
-P_c <- c(P_c,Prec_class(CL!="",dt$GBDnp!=""))
-R_c <- c(R_c,Rec_class(CL!="",dt$GBDnp!=""))
-Sp_c <- c(Sp_c,Spec_class(CL!="",dt$GBDnp!=""))
-
-algo <- strsplit(CL,"&")
-tst <- strsplit(as.character(dt$GBDnp),"&&")
-algo0 <- AjoutZ(algo)
-tst0 <- AjoutZ(tst)
-
-R_t <- c(R_t,Rec_t(algo0,tst0))
-P_t <- c(P_t,Prec_t(algo0,tst0))
-SA_t <- c(SA_t,SubsetAcc(algo0,tst0))
-
-}
+apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
+#[1] 0.8333908 0.7542862
 
 
-V9 <- data.frame( 	svm_first = "NoSVM",
-			wsd_svm = rep(c("Emdin","JDZ"),each=2),
-			wsd_clas = rep(WC,2),
-			Prec_clas = P_c,
-			Sp_clas = Sp_c,
-			Rec_clas = R_c,
-			Prec_tr = P_t,
-			Rec_tr = R_t,
-			SAcc_tr = SA_t,
-			alpha = rep(Al,each=2))
-
-#################################################################
-
-VF <- rbind(V,V2,V3,V4,V5,V6,V7,V8,V9)
-
-VF <- VF[order(VF$svm_first,VF$wsd_svm,VF$alpha,VF$wsd_clas),]
-VF <- VF[,c(1:2,ncol(VF),3:(ncol(VF)-1))]
-
-write.csv(VF,"MetaMapBurden/Trial_Burden_Param/Validation_table_f.csv")
-
-#####################################################################
-
-#Nb de GBDs
-
-#Manque ajouter V42: only mapped trials
-#Et faire avec min alpha = min alpha all trials
 
 
 

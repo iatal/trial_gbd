@@ -1,0 +1,24 @@
+#Fonctions CUI_GBD: sacar upload Mgbd et Egbd
+
+#Pour création de IntraMap output en fonction de CUI_out-map ou CUI_out-map à la main: regarder TrialBurdenUMLS/9-IntraMap_output
+
+#Expert-based enrichment is conducted using GBD taxonomy 171
+
+#Rq: MTIM a CUI_out = NA pour concepts non mappés par IntraMap
+#Et MTJD a CUI_out = NA aussi
+
+#Possible improvement taille databases: mettre dans le même fichier mapping dans chaque taxonomie
+
+#File Database creation: expliquer
+
+#Improvements training: mettre gamma et cost différents pour chaque svm
+
+#Manque mettre les conditions d'arrêt si erreur dans Input, ou si manque inclusion de data
+
+#Mettre svm_wrong après svm_unclear (et donc erreur si avec svm_unclear on se trompe)
+
+#Tester Emdin et JDZ séparément
+
+#Pour only condition field: mettre un paramètre dans la fonction scoring_gbd, donnant priorité à condition s'il a un GBD
+
+#Mettre cross-validation dans un programme

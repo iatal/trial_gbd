@@ -4,77 +4,50 @@
 #Rq: wsd_classif = Yes ou No pas de wsd Duo car on va prédire la classif pour un seul
 #On ne prédit que pour les essais sans GBD
 
-classifier <- function(data,MMap,MTc,svm_mod,wsd_classif){
+classifier <- function(data,MMap,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND=FALSE,COND_only=FALSE){
 
 NCTs <- as.character(data$PMID)
 
-A <- Test_ajout_MT_classif(MMap,MTc)
-if(A[[1]]==FALSE) return(A[[2]])
+A <- Test_add_MT_classif(NCTs,MMap,MTc)
+if(A[[1]]==FALSE) return(A[[3]])
 
-MC <- CUI_charac(MMap, MTc)
+MC <- CUI_charac(Mgbd, Egbd, MMap, MTc)
 
-#On fait le processing pour chaque essai pour wsd = wsd_classif
-wsd <- wsd_classif
+#On fait le processing pour chaque essai pour wsd
 i <- 1
 NCT <- paste("pbky",NCTs[i],sep="")
-D <- Trial_charac(NCT,MMap,MC,wsd)
+D <- Trial_charac(Mgbd,Egbd,NCT,MMap,MC,wsd,COND)
 for(i in 2:length(NCTs)){
 NCT <- paste("pbky",NCTs[i],sep="")
-D <- rbind(D,Trial_charac(NCT,MMap,MC,wsd))
+D <- rbind(D,Trial_charac(Mgbd,Egbd,NCT,MMap,MC,wsd,COND))
 }
 #30s pour 1500 essais
 
 D <- data.frame(D,row.names=NULL)
 D <- cbind(D,Nb_mots_chp(data))
 
-#Pour la prédiction on enlève les NoGBD
-d <- droplevels(D[D$Ess_GBD!="",])
+ifelse(COND_only,gbd <- as.character(D$cond_GBD),gbd <- as.character(D$Ess_GBD))
 
-#On enlève les GBD group lists
-d <- d[,-grep("_GBD$",names(d))]
+#On enlève les GBD group lists et transforme tout en chiffres pour modèle prédictif
+D <- D[,-grep("_GBD$",names(D))]
+D <- sapply(D,function(x){as.numeric(as.character(x))})
 
-d <- sapply(d,function(x){as.numeric(as.character(x))})
+#Pour la prédiction NoGBD/Unclear:
+#Est-ce qu'on inclut ou pas le noGBD dans la prédiction?
+#Le inc_nogbd_svm doit être le même que pour le training
+#Rq: si inc_nogbd_svm = FALSE: attention au recollement predictions svm et gbd, car de différente taille
+#    dans ce cas, prédiction ne vaut que pour les gbd!="" 
+if(inc_nogbd_svm==FALSE) d <- D[gbd!="",]
+else d <- D
 
-is_unclear <- predict(svm_mod$best.model,d)
+#Prédiction de NoGBD
+is_unclear <- predict(svm_mod_unclear$best.model,d)
 
-gbd <- as.character(D$Ess_GBD)
-gbd[D$Ess_GBD!=""][as.logical(is_unclear)] <- ""
+#Prédiction de WrongGBD
+#Pour la prédiction WrongGBD, on fait toujours avec toute la data
+wrong_gbd <- predict(svm_mod_wrong$best.model,D)
 
-#return(list(is_unclear,gbd))
-return(gbd)
-
-}
-
-#########################################################
-#Classifier No SVM
-####################
-
-classifier_nosvm <- function(data,MMap,MTc,wsd_classif){
-
-NCTs <- as.character(data$PMID)
-
-A <- Test_ajout_MT_classif(MMap,MTc)
-if(A[[1]]==FALSE) return(A[[2]])
-
-MC <- CUI_charac(MMap, MTc)
-
-#On fait le processing pour chaque essai pour wsd = wsd_classif
-wsd <- wsd_classif
-i <- 1
-NCT <- paste("pbky",NCTs[i],sep="")
-D <- Trial_charac(NCT,MMap,MC,wsd)
-for(i in 2:length(NCTs)){
-NCT <- paste("pbky",NCTs[i],sep="")
-D <- rbind(D,Trial_charac(NCT,MMap,MC,wsd))
-}
-#30s pour 1500 essais
-
-D <- data.frame(D,row.names=NULL)
-D <- cbind(D,Nb_mots_chp(data))
-
-gbd <- as.character(D$Ess_GBD)
-
-return(gbd)
+return(list(gbd,is_unclear,wrong_gbd))
 
 }
 

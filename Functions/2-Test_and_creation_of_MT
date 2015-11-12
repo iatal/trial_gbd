@@ -1,16 +1,24 @@
-#Cette fonction teste, en fonction de l'input, du seuil (alpha) et des données en mémoire, s'il faut alimenter le classifieur par IntraMap ou manuellement
-#Output = FALSE si besoin d'alimentation
-#	= TRUE si pas de besoi
-#	 + MTc: table nécessaire au mapping des données
-#Nécessite library(gdata)
-#Rq: alpha = pourcentage de nrow(MMap), MMap ayant wsd et non wsd
+#This function tests, depending on the considered NCTs and the MetaMap output (MMap), on the IntraMap and Expert-based data in memory (already uploaded),
+#and on the threshold alpha, if it is necessary to rerun IntraMap or to manually map concepts to GBD
+#If there is no need to rerun IntraMap or Expert-based enrichment, the output is the total matrix UMLS_GBD
+#This function is used for the training of the classifier
 
-Test_ajout_MT <- function(NCTs,MMap,MT,Mtjd,alpha){
+#Output = FALSE if needs IntraMap or EB enrichment
+#	  + NULL
+#	  + list of concepts to be mapped
+#	= TRUE if no need
+#	  + MTc: total table UMLS_GBD
+#	  + NULL
+
+#Needs library(gdata)
+#Rq: alpha = percentage of nrow(MMap), MetaMap output using WSD and not WSD servers
+
+Test_add_MT <- function(NCTs,MMap,MT,MTEB,alpha){
 
 	#NCTs: liste des NCTs
 	#MMap: output MetaMap pour le NCTs listés
-	#MT: données IntraMap
-	#Mtjd: données CUI_GBD_manuel
+	#MT: données UMLS+IntraMap
+	#MTEB: données UMLS_GBD_manuel
 
 	CUI <- unique(MMap$X5)
 
@@ -28,15 +36,15 @@ Test_ajout_MT <- function(NCTs,MMap,MT,Mtjd,alpha){
 
 	#Manual work checking: est-ce que tous les cui no gbd avec freq sup alpha ont ete manuellement mappés
 	#Erreur et donner liste pour manuel
-	if(sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%Mtjd$CUIinp) !=0) {
-		print(paste(c("nb trials = ", length(NCTs), ", alpha = ", alpha ,". Need manual validation of ",sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%Mtjd$CUIinp)," concepts"),collapse=""))
-		return(list(FALSE,NULL,nogbd[fnogbd>=alpha*nrow(MMap) & !nogbd%in%Mtjd$CUIinp]))
+	if(sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%MTEB$CUIinp) !=0) {
+		print(paste(c("nb trials = ", length(NCTs), ", alpha = ", alpha ,". Need manual validation of ",sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%MTEB$CUIinp)," concepts"),collapse=""))
+		return(list(FALSE,NULL,nogbd[fnogbd>=alpha*nrow(MMap) & !nogbd%in%MTEB$CUIinp]))
 	}
 
-	Mtjdfalpha <- droplevels(Mtjd[Mtjd$CUIinp%in%nogbd[fnogbd>=alpha*nrow(MMap)],])
+	MTEBfalpha <- droplevels(MTEB[MTEB$CUIinp%in%nogbd[fnogbd>=alpha*nrow(MMap)],])
 
 	#CREATION DE MTc
-	MTc <- rbind(MT,Mtjdfalpha)
+	MTc <- data.frame(rbind(as.matrix(MT),as.matrix(MTEBfalpha)))
 	MTc$CUIinp <- reorder(MTc$CUIinp,sort(levels(MTc$CUIinp)))
 
 	return(list(TRUE,MTc,NULL))
@@ -44,13 +52,14 @@ Test_ajout_MT <- function(NCTs,MMap,MT,Mtjd,alpha){
 }
 
 #################################################
-#Test input IntraMap pour data à classifier (et non pas JDZ car uniquement pour training data)
+#This function tests if there is a need to rerun IntraMap uniquement
+#It is used for the classification
 
-Test_ajout_MT_classif <- function(MMap,MTc){
+Test_add_MT_classif <- function(NCTs,MMap,MTc){
 
 	#NCTs: liste des NCTs
 	#MMap: output MetaMap pour le NCTs listés
-	#MTc: données IntraMap+JDZ créé pendant le training
+	#MTc: données UMLS_IntraMap+EB_UMLS_GBD créé pendant le training
 
 	CUI <- unique(MMap$X5)
 

@@ -1,0 +1,25 @@
+"CUI_inp" "CUI_inp_name" "Map_type" "CUI_out" "CUI_out_name"
+"1" "C0242380" "Libman-Sacks Disease" "A" "C0409976" "Systemic lupus erythematosus with organ/system involvement"
+"2" "C0267628" "Rupture of appendix" "A" "C0156092" "Acute appendicitis with generalized peritonitis"
+"3" "C0423717" "Neurogenic pain" "G/P" "C0030193" "Pain"
+"4" "C3714582" "Toxic pneumonitis" "G/P" "C3263723;C0032285;C0339951" "Traumatic injury;Pneumonia;Pneumonia, organism unspecified"
+"5" "C0333431" "Localized degeneration" "No_target_concept_mapped_to" NA NA
+"6" "C0521857" "Increased drug resistance" "No_target_concept_mapped_to" NA NA
+"7" "C0340217" "Acquired tracheo-esophageal fistula" "A" "C0740253" "Empyema with fistula"
+"8" "C0497286" "Shoulder syndrome" "A" "C0494989" "Shoulder lesion, unspecified"
+"9" "C1880323" "Diffuse Hyperplastic Perilobar Nephroblastomatosis" "G/P" "C0006826" "Malignant Neoplasms"
+"10" "C0342968" "Impaired oxygen delivery" "G/P" "C0025517" "Metabolic Diseases"
+"11" "C0010626" "Embryonic cyst" "G/P" "C0000768;C0158683" "Congenital Abnormality;Polycystic liver disease (cgab"
+"12" "C0269831" "Arrested active phase of labor" "A" "C0477838" "Other uterine inertia"
+"13" "C1304445" "Localized adverse reaction to administration of drug" "G/P" "C0478506" "Unspecified adverse effect of drug or medicament"
+"14" "C1264032" "Acquired platelet function disorder" "G/P" "C0235604" "Qualitative platelet deficiency"
+"15" "C2712382" "Failed moderate sedation during procedure" "G/P" "C0478503;C0869220" "Other complications of anesthesia;Adverse effects, not elsewhere classified"
+"16" "C0242084" "Ruptured cerebral aneurysm" "A" "C0038525" "Subarachnoid Hemorrhage"
+"17" "C0279572" "combined type small cell lung cancer" "G/P" "C0348343" "Malignant neoplasm of bronchus or lung, unspecified"
+"18" "C1511041" "Balanced Chromosomal Translocation" "G/P" "C0008626" "Congenital chromosomal disease"
+"19" "C0751071" "Familial Dementia" "G/P" "C0497327" "Dementia"
+"20" "C1708718" "Localized Non-Resectable Adult Hepatocellular Carcinoma" "G/P" "C0027651;C2239176" "Neoplasms;Liver carcinoma"
+"21" "C3266645" "Ruptured aneurysm of intracranial artery" "G/P" "C0038454;C0085096;C0155764" "Cerebrovascular accident;Peripheral Vascular Diseases;Unspecified disorders of arteries and arterioles"
+"22" "C0860175" "Acute proctitis" "A" "C0348742" "Other specified diseases of anus and rectum"
+"23" "C1275398" "Chronic disease of hematopoietic system" "No_target_concept_mapped_to" NA NA
+"24" "C2902886" "Nephrotic syndrome with minimal change lesion" "No_target_concept_mapped_to" NA NA

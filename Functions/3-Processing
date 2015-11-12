@@ -4,7 +4,9 @@
 #Question: choix de 0 pour quand pas de CUI? En partic pour la distance?
 #Question: choix de 1 pour recouvrement?
 
-CUI_charac <- function(MMap,MTc){
+#Need Functions_cui_gbd
+
+CUI_charac <- function(Mgbd,Egbd,MMap,MTc){
 
 	CUI <- sort(unique(MMap$X5))
 	#On restreint MT aux données
@@ -13,7 +15,7 @@ CUI_charac <- function(MMap,MTc){
 	#CUI_100%NA (sans mapping manuel)
 	prop_na <- unlist(tapply(MTu$GBD,MTu$CUIinp,function(x){length(x[is.na(x)])/length(x)}))
 	#CUI_manuellement_vers_0
-	cui_0 <- unlist(tapply(MTu$GBD,MTu$CUIinp,function(x){0%in%x}))
+	cui_0 <- unlist(tapply(MTu$GBD,MTu$CUIinp,function(x){0%in%as.numeric(as.character(x))}))
 	#CUI_mult
 	#avec cuiinp_gbdl on supprime les GBD = 0
 	S <- lapply(CUI,function(x){cuiinp_gbdl(x,MTu)})
@@ -22,10 +24,15 @@ CUI_charac <- function(MMap,MTc){
 	#Distance dans l'arbre GBD de chaque CUI_gbd_mult
 	#On calcule la distance comme la différence entre le level du noeud commun et le min du level de la liste
 
+	#dist <- rep(NA,length(S))
 	dist <- unlist(lapply(S,function(x){
+	#for(i in 1:length(S)){
+	#x <- S[[i]]
+	#if(length(x)!=0){
 	if(length(x)==0) return(NA)
+	#dist[i] <- 
 	min(Egbd$level[Egbd$cause_name%in%as.character(Mgbd$cause_name[x])],na.rm=TRUE) - 
-	Egbd$level[Egbd$cause_name==Noeud_comm(as.character(Mgbd$cause_name[x]))]
+	Egbd$level[Egbd$cause_name==Noeud_comm(Egbd,as.character(Mgbd$cause_name[x]))]
 	}))
 
 	#Fréquence concepts: on calcule avec seulement les essais considérés
@@ -40,8 +47,9 @@ CUI_charac <- function(MMap,MTc){
 #######################################################################
 #Cette fonction prend en entrée un essai, et sort l'output pour SVM + la classification GBD
 #Chacun x2: avec et sans WSD
-
-Trial_charac <- function(NCT, MMap, MC, wsd){
+#COND = TRUE ou FALSE pour Trial GBD = priorité à cond ou juste scoring_gbd
+#Par défault on met FALSE
+Trial_charac <- function(Mgbd, Egbd, NCT, MMap, MC, wsd, COND=FALSE){
 
 	CUI <- rownames(MC)
 	nx <- tolower(NCT)
@@ -71,7 +79,7 @@ Trial_charac <- function(NCT, MMap, MC, wsd){
 	#nb de GBDs dans tout le texte
 	length(gb),
 	#distance entre gbds dans tout le texte (si pas de gbd = 0)
-	ifelse(length(gb)==0,0,min(Egbd$level[Egbd$cause_name%in%as.character(Mgbd$cause_name[gb])],na.rm=TRUE) - Egbd$level[Egbd$cause_name==Noeud_comm(as.character(Mgbd$cause_name[gb]))]),
+	ifelse(length(gb)==0,0,min(Egbd$level[Egbd$cause_name%in%as.character(Mgbd$cause_name[gb])],na.rm=TRUE) - Egbd$level[Egbd$cause_name==Noeud_comm(Egbd,as.character(Mgbd$cause_name[gb]))]),
 	#recouvrement GBDs entre concepts
 	recouv_gbds(strsplit(as.character(MC$lgbd[CUI%in%x]),"&")),
 	#max fréquence cuis par texte
@@ -81,7 +89,7 @@ Trial_charac <- function(NCT, MMap, MC, wsd){
 	#On met 0 partout quand pas de CUI dans un champ de texte
 	PC[unlist(lapply(PC,length))==0] <- rep(list(c("",rep(0,11))),sum(unlist(lapply(PC,length))==0))
 
-	D <- c(unlist(PC),recouv_gbds(lapply(PC,function(x){unlist(strsplit(x[1],"&"))})),paste(scoring_gbd(lapply(PC,function(x){unlist(strsplit(x[1],"&"))})),collapse="&"))
+	D <- c(unlist(PC),recouv_gbds(lapply(PC,function(x){unlist(strsplit(x[1],"&"))})),paste(scoring_gbd(lapply(PC,function(x){unlist(strsplit(x[1],"&"))}),COND),collapse="&"))
 
 	names(D) <- c(paste(rep(c("brief_","cond_","off_"),each=12),c("GBD", "Nb_CUI", "Nb_NA", "Nb_0", "Nb_M", "Nb_U", "Max_M", "D_max_cui", "Nb_GBDs", "D_max_t", "Recouv", "F_max"),sep=""),"Ess_recouv","Ess_GBD")
 

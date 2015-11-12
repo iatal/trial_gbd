@@ -1,0 +1,110 @@
+#Evaluation of a classifier
+#############################
+#On évalue la sensibilité et la spécificité de chaque SVM
+#Pour SVM Unclear: on considère comme vrais positifs les essais classifiables que j'ai dit qu'étaient classifiables
+#Pour SVM Wrong: on considère comme vrais positifs les essais dont ma classif est correcte que j'ai dit que la classif était correcte
+#Pour la tache de classification vers GBD:
+#Plus la moyenne des precisions et recall par essai en tenant en compte chaque SVM, et sans SVM
+
+Eval_CL <- function(tsdt, CL, inc_nogbd_svm){
+
+gbd <- CL[[1]]
+unc_svm <- CL[[2]]
+wrg_svm <- CL[[3]]
+
+algo <- strsplit(gbd,"&")
+dt <- as.character(tsdt$GBDnp)
+tst <- strsplit(dt,"&&")
+
+#
+#SVM_unclear
+#Sa valeur dépend de inc_nogbd_svm
+#Si FALSE, c'est à dire qu'avant le SVM on a forcé la prédiction que les essais sans GBD par l'algo étaient unclear
+if(inc_nogbd_svm==FALSE) {	unc_svm_d <- gbd!=""
+				unc_svm_d[gbd!=""] <- !as.logical(unc_svm)}
+else unc_svm_d <- !as.logical(unc_svm)
+
+PERF_SVM <- c(Sens_class(unc_svm_d,dt!=""),Spec_class(unc_svm_d,dt!=""))
+
+#On calcule la Précision, Recall et SubsetAcc pour
+#Avec et sans SVM Unclear
+#Pour les data exclues et incluses par SVM Wrong dans les deux configurations de celui-ci
+#Et pourcentage de data exclues dans chaque cas
+#Rq: comme les deux SVMs sont indépendants, % data exclues est le même
+
+PERF <- c()
+
+#Sans SVM Unclear
+##################
+algo0 <- AjoutZ(algo)
+tst0 <- AjoutZ(tst)
+
+#Sans exclure des données
+PERF <- rbind(PERF,c(0,NA,NA,NA,Prec_t(algo0,tst0),Rec_t(algo0,tst0),SubsetAcc(algo0,tst0)))
+
+#Avec petite exclusion par SVM Wrong
+algoinc <- algo0[wrg_svm%in%c("No","Included")]
+tstinc <- tst0[wrg_svm%in%c("No","Included")]
+algoexc <- algo0[!wrg_svm%in%c("No","Included")]
+tstexc <- tst0[!wrg_svm%in%c("No","Included")]
+
+PERF <- rbind(PERF,c(sum(!wrg_svm%in%c("No","Included"))/nrow(tsdt),
+Prec_t(algoexc,tstexc),
+Rec_t(algoexc,tstexc),
+SubsetAcc(algoexc,tstexc),
+Prec_t(algoinc,tstinc),
+Rec_t(algoinc,tstinc),
+SubsetAcc(algoinc,tstinc)))
+
+#Avec grosse exclusion par SVM Wrong
+algoinc <- algo0[wrg_svm%in%c("No")]
+tstinc <- tst0[wrg_svm%in%c("No")]
+algoexc <- algo0[!wrg_svm%in%c("No")]
+tstexc <- tst0[!wrg_svm%in%c("No")]
+
+PERF <- rbind(PERF,c(sum(!wrg_svm%in%c("No"))/nrow(tsdt),
+Prec_t(algoexc,tstexc),
+Rec_t(algoexc,tstexc),
+SubsetAcc(algoexc,tstexc),
+Prec_t(algoinc,tstinc),
+Rec_t(algoinc,tstinc),
+SubsetAcc(algoinc,tstinc)))
+
+#Avec SVM Unclear
+#################
+algo0[!unc_svm_d] <- 0
+
+#Sans exclure des données
+PERF <- rbind(PERF,c(0,NA,NA,NA,Prec_t(algo0,tst0),Rec_t(algo0,tst0),SubsetAcc(algo0,tst0)))
+
+#Avec petite exclusion par SVM Wrong
+algoinc <- algo0[wrg_svm%in%c("No","Included")]
+tstinc <- tst0[wrg_svm%in%c("No","Included")]
+algoexc <- algo0[!wrg_svm%in%c("No","Included")]
+tstexc <- tst0[!wrg_svm%in%c("No","Included")]
+
+PERF <- rbind(PERF,c(sum(!wrg_svm%in%c("No","Included"))/nrow(tsdt),
+Prec_t(algoexc,tstexc),
+Rec_t(algoexc,tstexc),
+SubsetAcc(algoexc,tstexc),
+Prec_t(algoinc,tstinc),
+Rec_t(algoinc,tstinc),
+SubsetAcc(algoinc,tstinc)))
+
+#Avec grosse exclusion par SVM Wrong
+algoinc <- algo0[wrg_svm%in%c("No")]
+tstinc <- tst0[wrg_svm%in%c("No")]
+algoexc <- algo0[!wrg_svm%in%c("No")]
+tstexc <- tst0[!wrg_svm%in%c("No")]
+
+PERF <- rbind(PERF,c(sum(!wrg_svm%in%c("No"))/nrow(tsdt),
+Prec_t(algoexc,tstexc),
+Rec_t(algoexc,tstexc),
+SubsetAcc(algoexc,tstexc),
+Prec_t(algoinc,tstinc),
+Rec_t(algoinc,tstinc),
+SubsetAcc(algoinc,tstinc)))
+
+return(list(PERF_SVM,PERF))
+}
+

@@ -1,0 +1,14 @@
+#Upload GBD taxonomies and structure, UMLS_GBD, IntraMap_GBD and Expert-based_GBD databases in function of the taxonomy
+#Input, taxonomy has two possible values: 	"RL" for ranking list (171 GBD groups)
+#						"DL" for disaggregated list (28 GBD groups)
+
+Data_upl <- function(Tax){
+
+Mgbd <- read.table(paste(c("./Databases/Taxonomy_",Tax,"/GBD_data/GBD_ICD.txt"),collapse=""))
+Egbd <- read.table(paste(c("./Databases/Taxonomy_",Tax,"/GBD_data/GBD_structure.txt"),collapse=""))
+
+MTUM <- read.table(paste(c("./Databases/Taxonomy_",Tax,"/UMLS_ICD10_GBD.txt"),collapse=""))
+MTIM <- read.table(paste(c("./Databases/Taxonomy_",Tax,"/IntraMap_ICD10_GBD.txt"),collapse=""))
+MTEB <- read.table(paste(c("./Databases/Taxonomy_",Tax,"/Expert_based_UMLS_GBD.txt"),collapse=""))
+
+}

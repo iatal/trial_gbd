@@ -1,0 +1,11 @@
+"CUI_inp" "CUI_inp_name" "Map_type" "CUI_out" "CUI_out_name"
+"1" "C0544688" "Disease complication" "O" "C0274335;C0477810" "Mechanical complication of dialysis catheter;Complication following abortion and ectopic and molar pregnancy, unspecified"
+"2" "C1331532" "Fasciola hepatica infection" "A" "C0015652;C0040820" "Fascioliasis;Trematode Infections"
+"3" "C1142264" "Critical limb ischemia" "O" "C0728936;C0348668" "Disorder of circulatory system;Other and unspecified disorders of the circulatory system"
+"4" "C3665629" "Dental fluorosis" "O" "C0026618" "Dental Fluorosis, Acquired"
+"5" "C0231274" "Intolerant of heat" "O" "C0018844;C0022596;C0021051;C0012766" "Heat stroke and sunstroke;Palmoplantar Keratosis;Immunologic Deficiency Syndromes;Skin sensation disturbance"
+"6" "C0595950" "Mechanical Detachment" "O" "C0154822;C0154828;C0271055;C0339440;C0035309;C1320640;C0154822;C0154828;C0271055;C0339440" "Serous retinal detachment;Traction detachment of retina;Rhegmatogenous retinal detachment;Other retinal detachments;Retinal Diseases;Peripheral degeneration of retina;Serous retinal detachment;Traction detachment of retina;Rhegmatogenous retinal detachment;Other retinal detachments"
+"7" "C2350873" "Beryllium Disease" "No_target_concept_mapped_to" NA NA
+"8" "C0282208" "Injuries, Surgical" "O" "C0478147;C3263723;C0496137" "General symptoms and signs (R50-R69);Traumatic injury;Unspecified complication of procedure"
+"9" "C0037090" "Signs and Symptoms, Respiratory" "O" "C0025048;C0178309;C0270148;C0477914;C0521648;C0035220;C0475712;C0477907;C0477915;C0456015" "Meconium Aspiration Syndrome;Other conditions originating in the perinatal period;Perinatal cyanotic attacks;Other apnea of newborn;Neonatal respiratory failure;Respiratory Distress Syndrome, Newborn;Primary sleep apnea of newborn;Other respiratory distress of newborn;Other specified respiratory conditions of newborn;Neonatal aspiration of blood"
+"10" "C1112356" "Bronchial dysplasia" "O" "C0027651;C0154103" "Neoplasms;Neoplasm of uncertain behavior of trachea, bronchus and lung"

@@ -1,0 +1,50 @@
+
+#L <- Data_upl(Tax)
+
+K_cross_valid <- function(data,MMap,L,K,
+
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
+
+#Mettre le K-fold cross validation dans un programme
+K <- 10
+set.seed(7212)
+x <- sample(1:nrow(data))
+L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
+
+Ptot <- c()
+t0 <- proc.time()
+for(i in 1:K){
+#i <- sample(1:10,1)
+
+trdt <- data[unlist(L[-i]),]
+NCTstr <- tolower(as.character(trdt$PMID))
+Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
+
+tsdt <- data[unlist(L[i]),]
+NCTsts <- tolower(as.character(tsdt$PMID))
+Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
+
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND_only=COND_only)
+
+MTc <- TR[[1]]
+svm_mod_unclear <- TR[[2]]
+svm_mod_wrong <- TR[[3]]
+remove(TR)
+
+CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND_only=COND_only)
+
+PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+
+Ptot <- c(Ptot,PERF)
+}
+#1.7min per i
+#5.7min en tout
+t1 <- proc.time()
+
+apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+
+

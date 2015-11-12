@@ -1,0 +1,351 @@
+#Main program creating the databases mapping UMLS concepts to GBD depending on the GBD taxonomy used
+#This program supports two GBD taxonomies: Ranking_list (RL) and Disag_list (DL)
+
+#Input databases are the following:
+######
+#Folder CUI_GBD:
+#data_UMLS_ICD.txt: has all the UMLS concepts having ICD10 codes
+#Expert_based_enrichment: manual classification of UMLS concepts to the Ranking_list GBD taxonomy: Up to date: 3 manual classifications
+#IntraMap_output: IntraMap output of UMLS concepts not appearing in the data_UMS_ICD.txt database: Up to date: 7 IntraMap calls
+
+#Folders Taxonomy_RL and _DL
+#GBD_data: contains 2 databases: 	GBD_ICD.txt giving the correspondence GBD to ICD10
+#					GBD_structure.txt giving the tree structure of the taxonomy
+
+#File Transfert_RL_DL.txt: transfert from taxonomy RL to taxonomy DL, using the same order than GBD_ICD of taxonomy RL
+
+#Output databases:
+######
+#For each taxonomy, it creates the total IntraMap data to GBD and the total Expert_based_enrichment to GBD
+
+#Includes manual corrections to IntraMap
+#And manual corrections to UMLS_ICD_GBD
+
+##############################################################################
+#COMMON INPUTS: UMLS and INTRAMAP
+##############################################################################
+setwd("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/")
+
+#Upload fonctions isICD, Guiones and ICD_GBD
+source("./Functions/CUI_GBD/1-Fonctions_icd_gbd")
+
+#Upload UMLS to ICD data
+#############
+UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
+
+#Manual reparations of UMLS ICDs not corresponding to correct ICD codes
+
+ictp <- as.character(UM$V14)
+#C0478134
+ictp[ictp=="R40-F46.9"] <- "R40-R46.9"
+#C0478186
+ictp[ictp=="R90-F94.9"] <- "R90-R94.9"
+UM$V14 <- factor(ictp)
+
+
+#Upload IntraMap data
+##############
+IMF <- list.files("./Databases/CUI_GBD/IntraMap_output")
+
+IM <- data.frame()
+for(i in IMF){
+IM <- rbind(IM,read.table(paste("./Databases/CUI_GBD/IntraMap_output",i,sep="/")))
+}
+#We suppress from IntraMap CUI_inp already present in UMLS to ICD data
+IM <- IM[!IM$CUI_inp%in%as.character(UM$V1),]
+#We suppress duplicated CUI_inp (corresponding to duplicated CUI_out also)
+IM <- IM[!duplicated(IM$CUI_inp),]
+
+IM <- as.matrix(IM)
+
+#Manual reparations of IntraMap data
+
+#Concept "C1306459": Primary malignant neoplasms
+#Mapped to "C0348374": Malignant neoplasm of central nervous system, unspecified
+#We map it to "C0006826": Malignant neoplasms
+IM[IM[,1]=="C1306459",3:5] <- c("manual_rep","C0006826","Malignant neoplasms")
+
+#Concept "C0876994": Cardiotoxicity
+#Mapped to "C0409910": Gout secondary to drug
+#Among others
+#We suppress "C0409910"
+IM[IM[,1]=="C0876994",3:5] <- c("manual_rep","C0018799;C0034525","Heart Diseases;Effects of radiation")
+
+#Concept "C2825032": Withdrawal (dysfunction)
+#Mapped to "C0037448": Socialized behavior disorder
+#We suppress it
+IM[IM[,1]=="C2825032",3:5] <- c("manual_rep",NA,NA)
+
+#Concept "C0949179": Edentulism
+#Has not ICD code. We map it to itself and add Edentulism to UMLS_ICD_GBD
+IM[IM[,1]=="C0949179",3:5] <- c("manual_rep","C0949179","Edentulism NOS")
+
+#Concept "C0878773": Overactive Bladder
+#Mapped to "C0027765": Diseases of the nervous system
+#Among others
+#We suppress "C0027765"
+IM[IM[,1]=="C0878773",3:5] <- c("manual_rep","C0005686;C0029776;C0156271;C0478133","Urinary Bladder Diseases;Other specified disorders of bladder;Other disorders of bladder;Other and unspecified symptoms and signs involving the urinary system")
+
+IM <- data.frame(IM)
+
+
+#Upload Expert-based manual classification to GBD
+#########################
+JDF <- list.files("./Databases/CUI_GBD/Expert_based_enrichment/")
+
+JD <- data.frame()
+for(i in JDF){
+JD <- rbind(JD,read.table(paste("./Databases/CUI_GBD/Expert_based_enrichment",i,sep="/")))
+}
+
+#Manual reparation of Expert-based classification
+
+#Concept "C0014009": Empyema
+#Mapped manually to NoGBD and to Lower respiratory infections
+#We map it to NoGBD
+JD <- JD[JD$CUIinp!="C0014009" | JD$GBD=="0",]
+
+#Concept "C0032343": Poisoning
+#Mapped manually to NoGBD and to Poisonings
+#We map it to Poisonings
+JD <- JD[JD$CUIinp!="C0032343" | JD$GBD!="0",]
+
+#Concept "C0085633": Mood swings
+#Mapped manually to NoGBD and to Bipolar affective disorder
+#We map it to Bipolar affective disorder
+JD <- JD[JD$CUIinp!="C0085633" | JD$GBD!="0",]
+
+#Concept "C0151293": Chronic Headache
+#Mapped manually to NoGBD, to Tension-type headache and to Migraine
+#We map it to Tension-type headache and to Migraine
+JD <- JD[JD$CUIinp!="C0151293" | JD$GBD!="0",]
+
+#Concept "C0332679": Crushing injury
+#Mapped manually to NoGBD, to Road injury, and to Exposure to mechanical forces
+#We map it to Road injury and to Exposure to mechanical forces
+JD <- JD[JD$CUIinp!="C0332679" | JD$GBD!="0",]
+
+#Concept "C1368999": Effects of radiation
+#Mapped manually to NoGBD and to Adverse effects of medical treatment
+#We map it to Adverse effects
+JD <- JD[JD$CUIinp!="C1368999" | JD$GBD!="0",]
+
+JD <- droplevels(JD)
+
+###################################################################################
+#TAXONOMY RL
+###################################################################################
+Mgbd <- read.table("./Databases/Taxonomy_RL/GBD_data/GBD_ICD.txt")
+
+#UMLS_ICD_GBD
+################
+#For each UMLS_ICD concept, we divide the ICDs in individual ICDs, and map each on to a GBD
+#We use the ICD_GBD program
+t0 <- proc.time()
+MTUM <- do.call(rbind,
+by(UM,UM$V1,function(U){
+
+CUIout <- unique(U$V1)
+icds <- as.character(unique(UM$V14[UM$V1==CUIout]))
+
+cbind(CUIout,
+do.call(rbind,
+	lapply(icds,function(ICDgn){
+	cbind(ICDgn,do.call(rbind,lapply(Guiones(ICDgn),function(x){ICD_GBD(Mgbd,x)})))
+	})#lapply ICDl
+))
+})#By CUIout
+)
+t1 <- proc.time() - t0
+#5.2 minutes
+
+MTUM <- as.matrix(MTUM)
+
+MTUM[,4] <- gsub(" ","",MTUM[,4])
+
+#Manual reparations of UMLS to ICD to GBD
+
+#For concept "C0027651": Neoplasms ; ICDgn = "C00-D48.9"
+#We suppress code C46 included in GBD HIV
+#	and  code D25 corresponding to GBD Uterine fibroids
+MTUM[MTUM[,1]=="C0027651" & MTUM[,3]=="C46",4] <- NA
+MTUM[MTUM[,1]=="C0027651" & MTUM[,3]=="D25",4] <- NA
+
+#For concept "C0006826": Malignant neoplasms ; ICDgn = "C00-C97.9"
+#Idem for HIV
+MTUM[MTUM[,1]=="C0006826" & MTUM[,3]=="C46",4] <- NA
+
+#For concept "C0949179": Edentulism ; NoICDcode
+#We add it to MTUM
+MTUM <- rbind(MTUM,c("C0949179","NoICDcode","NoICDcode",as.character(grep("Edentulism",Mgbd$cause_name)),NA))
+
+
+MTUM <- data.frame(MTUM)
+MTUM$CUIinp <- MTUM$CUIout
+#We give the best level of IntraMap mapping to these mapping: "I", by synonymy
+MTUM$Map_type <- "I"
+MTUM <- MTUM[,c(6,7,1:5)]
+
+write.table(MTUM,"./Databases/Taxonomy_RL/UMLS_ICD10_GBD.txt")
+
+#IntraMap_UMLS_GBD
+######################
+#For each IntraMap input, we find all the mapped UMLS_ICD concepts and the corresponding GBDs
+table(unlist(strsplit(as.character(IM$CUI_out[!is.na(IM$CUI_out)]),";"))%in%MTUM$CUIout)
+# TRUE 
+#17030
+#OK, all outputs from IntraMap are in UMLS_ICD
+
+t0 <- proc.time()
+L <- by(IM,IM$CUI_inp,function(x){
+
+mm <- unlist(strsplit(as.character(x$CUI_out),";"))
+mm <- mm[!is.na(mm)]
+
+if(length(mm)!=0){
+	d <- MTUM[MTUM$CUIout%in%as.character(mm),-c(1,2)]
+	d$CUIinp <- x$CUI_inp
+	d$Map_type <- x$Map_type
+	d <- d[,c(6,7,1:5)]
+}
+else{ 
+	d <- x[,-c(2,5)]
+	names(d) <- c("CUIinp","Map_type","CUIout")
+	d$ICDgn <- NA
+	d$ICD <- NA
+	d$GBD <- NA
+	d$Pbs <- NA
+}
+return(d)
+})
+
+MTIM <- do.call(rbind,L)
+t1 <- proc.time() - t0
+#7.5 minutes
+
+write.table(MTIM,"./Databases/Taxonomy_RL/IntraMap_ICD10_GBD.txt")
+
+#Expert-based UMLS_GBD
+##########
+#We see which concepts were mapped manually AND automatically for UMLS or IntraMap different from Map_type = "O"
+#We suppress them from the manual mapping
+
+SUM <- tapply(MTUM$GBD,MTUM$CUIinp,function(x){length(x[!is.na(x)])})
+SIM <- tapply(droplevels(MTIM$GBD[MTIM$Map_type!="O"]),droplevels(MTIM$CUIinp[MTIM$Map_type!="O"]),function(x){length(x[!is.na(x)])})
+
+MTJD <- droplevels(JD[!JD$CUIinp%in%intersect(c(names(SUM)[SUM!=0],names(SIM)[SIM!=0]),unique(as.character(JD$CUIinp))),])
+
+write.table(MTJD,"./Databases/Taxonomy_RL/Expert_based_UMLS_GBD.txt")
+
+############################################################################################
+#TAXONOMY DL
+############################################################################################
+Mgbd <- read.table("./Databases/Taxonomy_DL/GBD_data/GBD_ICD.txt")
+
+#UMLS_ICD_GBD
+################
+#For each UMLS_ICD concept, we divide the ICDs in individual ICDs, and map each on to a GBD
+#We use the ICD_GBD program
+t0 <- proc.time()
+MTUM <- do.call(rbind,
+by(UM,UM$V1,function(U){
+
+CUIout <- unique(U$V1)
+icds <- as.character(unique(UM$V14[UM$V1==CUIout]))
+
+cbind(CUIout,
+do.call(rbind,
+	lapply(icds,function(ICDgn){
+	cbind(ICDgn,do.call(rbind,lapply(Guiones(ICDgn),function(x){ICD_GBD(Mgbd,x)})))
+	})#lapply ICDl
+))
+})#By CUIout
+)
+t1 <- proc.time() - t0
+#4.5 minutes
+
+MTUM <- as.matrix(MTUM)
+
+MTUM[,4] <- gsub(" ","",MTUM[,4])
+
+#Manual reparations of UMLS to ICD to GBD
+
+#For concept "C0027651": Neoplasms ; ICDgn = "C00-D48.9"
+#We suppress code C46 included in GBD HIV
+#	and  code D25 corresponding to GBD Gynecological diseases (Uterine fibroids)
+MTUM[MTUM[,1]=="C0027651" & MTUM[,3]=="C46",4] <- NA
+MTUM[MTUM[,1]=="C0027651" & MTUM[,3]=="D25",4] <- NA
+
+#For concept "C0006826": Malignant neoplasms ; ICDgn = "C00-C97.9"
+#Idem for HIV
+MTUM[MTUM[,1]=="C0006826" & MTUM[,3]=="C46",4] <- NA
+
+#For concept "C0949179": Edentulism ; NoICDcode
+#We add it to MTUM in Oral disorders
+MTUM <- rbind(MTUM,c("C0949179","NoICDcode","NoICDcode",as.character(grep("Oral dis",Mgbd$cause_name)),NA))
+
+
+MTUM <- data.frame(MTUM)
+MTUM$CUIinp <- MTUM$CUIout
+#We give the best level of IntraMap mapping to these mapping: "I", by synonymy
+MTUM$Map_type <- "I"
+MTUM <- MTUM[,c(6,7,1:5)]
+
+write.table(MTUM,"./Databases/Taxonomy_DL/UMLS_ICD10_GBD.txt")
+
+#IntraMap_UMLS_GBD
+######################
+#For each IntraMap input, we find all the mapped UMLS_ICD concepts and the corresponding GBDs
+table(unlist(strsplit(as.character(IM$CUI_out[!is.na(IM$CUI_out)]),";"))%in%MTUM$CUIout)
+# TRUE 
+#17029
+#OK, all outputs from IntraMap are in UMLS_ICD
+
+t0 <- proc.time()
+L <- by(IM,IM$CUI_inp,function(x){
+
+mm <- unlist(strsplit(as.character(x$CUI_out),";"))
+mm <- mm[!is.na(mm)]
+
+if(length(mm)!=0){
+	d <- MTUM[MTUM$CUIout%in%as.character(mm),-c(1,2)]
+	d$CUIinp <- x$CUI_inp
+	d$Map_type <- x$Map_type
+	d <- d[,c(6,7,1:5)]
+}
+else{ 
+	d <- x[,-c(2,5)]
+	names(d) <- c("CUIinp","Map_type","CUIout")
+	d$ICDgn <- NA
+	d$ICD <- NA
+	d$GBD <- NA
+	d$Pbs <- NA
+}
+return(d)
+})
+
+MTIM <- do.call(rbind,L)
+t1 <- proc.time() - t0
+#5.5 minutes
+
+write.table(MTIM,"./Databases/Taxonomy_DL/IntraMap_ICD10_GBD.txt")
+
+#Expert-based UMLS_GBD
+##########
+#We see which concepts were mapped manually AND automatically for UMLS or IntraMap different from Map_type = "O"
+#We suppress them from the manual mapping
+
+SUM <- tapply(MTUM$GBD,MTUM$CUIinp,function(x){length(x[!is.na(x)])})
+SIM <- tapply(droplevels(MTIM$GBD[MTIM$Map_type!="O"]),droplevels(MTIM$CUIinp[MTIM$Map_type!="O"]),function(x){length(x[!is.na(x)])})
+
+MTJD <- droplevels(JD[!JD$CUIinp%in%intersect(c(names(SUM)[SUM!=0],names(SIM)[SIM!=0]),unique(as.character(JD$CUIinp))),])
+
+#We then transfer Expert-based mapping from RankList to DisagList
+T <- read.table("./Databases/Transfert_RL_DL.txt")
+
+mtjd <- as.numeric(as.character(MTJD$GBD))
+MTJD$GBD <- as.character(unlist(lapply(mtjd,function(x){ifelse(x==0,0,which(Mgbd$cause_name==T$Tax_disag[x]))})))
+
+write.table(MTJD,"./Databases/Taxonomy_DL/Expert_based_UMLS_GBD.txt")
+
+
