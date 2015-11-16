@@ -32,6 +32,6 @@ Ptot <- c(Ptot,list(PERF))
 Ptot_class <- c(Ptot_class,list(PERF_class))
 }
 
-return(apply(simplify2array(Ptot), c(1,2), mean))
+return(list(apply(simplify2array(Ptot), c(1,2), mean),apply(simplify2array(Ptot_class), c(1,2), mean)))
 
 }

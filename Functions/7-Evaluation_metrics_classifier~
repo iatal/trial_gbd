@@ -53,7 +53,6 @@ Rec_t <- function(algo0,data0){
 mean(unlist(lapply(1:length(data0),function(i){length(intersect(data0[[i]],algo0[[i]]))/length(data0[[i]])})))
 }
 
-
 sym_diff <- function(a,b) setdiff(union(a,b), intersect(a,b))
 
 HammingLoss <- function(algo0,data0,lab){
@@ -70,24 +69,24 @@ mean(unlist(lapply(1:length(data0),function(i){length(intersect(data0[[i]],algo0
 #Category based measures
 ###########################################
 
-#True positives pour la catégorie gbd (%in%0:171)
+#True positives pour la catégorie gbd (numeric %in%0:171)
 TP <- function(algo0,data0,gbd){
-sum(as.numeric(unlist(lapply(data0,function(x){gbd%in%x})))*as.numeric(unlist(lapply(algo0,function(x){gbd%in%x}))))
+sum(as.numeric(unlist(lapply(data0,function(x){gbd%in%as.numeric(x)})))*as.numeric(unlist(lapply(algo0,function(x){gbd%in%as.numeric(x)}))))
 }
 
 #False positives
 FP <- function(algo0,data0,gbd){
-sum(as.numeric(unlist(lapply(data0,function(x){!gbd%in%x})))*as.numeric(unlist(lapply(algo0,function(x){gbd%in%x}))))
+sum(as.numeric(unlist(lapply(data0,function(x){!gbd%in%as.numeric(x)})))*as.numeric(unlist(lapply(algo0,function(x){gbd%in%as.numeric(x)}))))
 }
 
 #True negatives
 TN <- function(algo0,data0,gbd){
-sum(as.numeric(unlist(lapply(data0,function(x){!gbd%in%x})))*as.numeric(unlist(lapply(algo0,function(x){!gbd%in%x}))))
+sum(as.numeric(unlist(lapply(data0,function(x){!gbd%in%as.numeric(x)})))*as.numeric(unlist(lapply(algo0,function(x){!gbd%in%as.numeric(x)}))))
 }
 
 #False negatives
 FN <- function(algo0,data0,gbd){
-sum(as.numeric(unlist(lapply(data0,function(x){gbd%in%x})))*as.numeric(unlist(lapply(algo0,function(x){!gbd%in%x}))))
+sum(as.numeric(unlist(lapply(data0,function(x){gbd%in%as.numeric(x)})))*as.numeric(unlist(lapply(algo0,function(x){!gbd%in%as.numeric(x)}))))
 }
 
 conf_matrix <- function(algo0,data0,lab_list){
@@ -110,6 +109,7 @@ fn <- vals[4]
 tp/(tp+fp)
 }
 
+#Recall = sensibilité
 Rec_l <- function(vals){
 tp <- vals[1]
 fp <- vals[2]
@@ -117,6 +117,16 @@ tn <- vals[3]
 fn <- vals[4]
 tp/(tp+fn)
 }
+
+#Spécificité
+Spec_l <- function(vals){
+tp <- vals[1]
+fp <- vals[2]
+tn <- vals[3]
+fn <- vals[4]
+tn/(tn+fp)
+}
+
 
 macro_av <- function(cm,fun){
 mean(apply(cm,1,fun))

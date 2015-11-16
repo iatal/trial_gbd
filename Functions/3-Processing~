@@ -48,8 +48,8 @@ CUI_charac <- function(Mgbd,Egbd,MMap,MTc){
 #Cette fonction prend en entrée un essai, et sort l'output pour SVM + la classification GBD
 #Chacun x2: avec et sans WSD
 #COND = TRUE ou FALSE pour Trial GBD = priorité à cond ou juste scoring_gbd
-
-Trial_charac <- function(Mgbd, Egbd, NCT, MMap, MC, wsd, COND=FALSE){
+#Par défault on met FALSE
+Trial_charac <- function(Mgbd, Egbd, NCT, MMap, MC, wsd, COND){
 
 	CUI <- rownames(MC)
 	nx <- tolower(NCT)

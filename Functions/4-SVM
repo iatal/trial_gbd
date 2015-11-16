@@ -1,18 +1,13 @@
 #Fonction renvoyant le tuned SVM basé sur la data donnée
 #nécessite package e1071
 
-sup_vm <- function(D,inc_nogbd_svm,gamma,cost){
+sup_vm <- function(D,gamma,cost){
 
-#inc_nogbd_svm: TRUE: on inclut les NoGBD dans le modèle
+d <- D[,-grep("_GBD$",names(D))]
 
-#Format input SVM
-if(inc_nogbd_svm==FALSE) D <- droplevels(D[D$Ess_GBD!="",])
-#On enlève les GBD group lists
-D <- D[,-grep("_GBD$",names(D))]
+d[,-ncol(d)] <- sapply(d[,-ncol(d)],function(x){as.numeric(as.character(x))})
 
-D[,-ncol(D)] <- sapply(D[,-ncol(D)],function(x){as.numeric(as.character(x))})
-
-obj <- tune.svm(Unclear ~ ., data = D, gamma = gamma, cost = cost, tunecontrol = tune.control(sampling="cross"))
+obj <- tune.svm(Unclear ~ ., data = d, gamma = gamma, cost = cost, tunecontrol = tune.control(sampling="cross"))
 
 #4min
 

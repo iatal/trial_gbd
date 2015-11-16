@@ -1,15 +1,12 @@
-#Fonction faisant la K_cross_validation de l'algo et calculant les moyennes des performances
 
 K_cross_valid <- function(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only){
 
-labs <- 0:nrow(Mgbd)
 x <- sample(1:nrow(data))
 L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
-Ptot_class <- c()
 Ptot <- c()
 for(i in 1:K){
-#i <- sample(1:K,1)
+
 trdt <- data[unlist(L[-i]),]
 NCTstr <- tolower(as.character(trdt$PMID))
 Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
@@ -22,14 +19,13 @@ TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,gamma,cost,COND,COND_only)
 
 MTc <- TR[[1]]
 svm_mod_wrong <- TR[[2]]
+remove(TR)
 
-CL <- classifier(tsdt,Mts,MTc,wsd,svm_mod_wrong,COND,COND_only)
+CL <- classifier(tsdt,Mts,MTc,wsd,svm_mod_wrong)
 	
 PERF <- Eval_CL(tsdt, CL)
-PERF_class <- Eval_per_class_CL(tsdt, CL, labs)
 
 Ptot <- c(Ptot,list(PERF))
-Ptot_class <- c(Ptot_class,list(PERF_class))
 }
 
 return(apply(simplify2array(Ptot), c(1,2), mean))

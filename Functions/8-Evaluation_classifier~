@@ -6,36 +6,21 @@
 #Pour la tache de classification vers GBD:
 #Plus la moyenne des precisions et recall par essai en tenant en compte chaque SVM, et sans SVM
 
-Eval_CL <- function(tsdt, CL, inc_nogbd_svm){
+Eval_CL <- function(tsdt, CL){
 
 gbd <- CL[[1]]
-unc_svm <- CL[[2]]
-wrg_svm <- CL[[3]]
+wrg_svm <- CL[[2]]
 
 algo <- strsplit(gbd,"&")
 dt <- as.character(tsdt$GBDnp)
 tst <- strsplit(dt,"&&")
 
-#
-#SVM_unclear
-#Sa valeur dépend de inc_nogbd_svm
-#Si FALSE, c'est à dire qu'avant le SVM on a forcé la prédiction que les essais sans GBD par l'algo étaient unclear
-if(inc_nogbd_svm==FALSE) {	unc_svm_d <- gbd!=""
-				unc_svm_d[gbd!=""] <- !as.logical(unc_svm)}
-else unc_svm_d <- !as.logical(unc_svm)
-
-PERF_SVM <- c(Sens_class(unc_svm_d,dt!=""),Spec_class(unc_svm_d,dt!=""))
-
 #On calcule la Précision, Recall et SubsetAcc pour
-#Avec et sans SVM Unclear
-#Pour les data exclues et incluses par SVM Wrong dans les deux configurations de celui-ci
+#Les data exclues et incluses par SVM Wrong dans les deux configurations de celui-ci
 #Et pourcentage de data exclues dans chaque cas
-#Rq: comme les deux SVMs sont indépendants, % data exclues est le même
 
 PERF <- c()
 
-#Sans SVM Unclear
-##################
 algo0 <- AjoutZ(algo)
 tst0 <- AjoutZ(tst)
 
@@ -70,26 +55,75 @@ Prec_t(algoinc,tstinc),
 Rec_t(algoinc,tstinc),
 SubsetAcc(algoinc,tstinc)))
 
-#Avec SVM Unclear
-#################
-algo0[!unc_svm_d] <- 0
+return(PERF)
+}
 
-#Sans exclure des données
-PERF <- rbind(PERF,c(0,NA,NA,NA,Prec_t(algo0,tst0),Rec_t(algo0,tst0),SubsetAcc(algo0,tst0)))
+########################################################
+#Evaluation per class
+#Donne la sensibilité et spécificité pour chaque classe de la taxonomie d'arrivée
+#Donne aussi le nombre d'essais par classe
+#Le nombre d'essais exclus par classe pour les deux configs de SVM_wrong
+#Et les perf par classe après exclusion
+#labs = ensemble GBDs dans Tax (avec 0 inclus)
+##############################
 
-#Avec petite exclusion par SVM Wrong
+Eval_per_class_CL <- function(tsdt, CL, labs){
+
+gbd <- CL[[1]]
+wrg_svm <- CL[[2]]
+
+algo <- strsplit(gbd,"&")
+dt <- as.character(tsdt$GBDnp)
+tst <- strsplit(dt,"&&")
+
+algo0 <- AjoutZ(algo)
+tst0 <- AjoutZ(tst)
+
+#Sans exclure les données
+#Confusion matrix
+#Colonnes = TP, FP, TN, FN
+CM <- conf_matrix(algo0,tst0,labs)
+#Nb essais dans le GBD, Sensibilité, Spécificité
+
+PERF <- cbind(CM[,1]+CM[,4],CM[,1]/(CM[,1]+CM[,4]),CM[,3]/(CM[,3]+CM[,2]))
+#Sensibilité = NaN -> GBD non atteint par mon algo
+#Sensibilité: capacité à dire vrai quand c'est vrai
+#Si Nb essais avec GBD = 0 et Sens = NaN -> Sens = 1
+PERF[PERF[,1]==0 & is.nan(PERF[,2]),2] <- 1
+#Spécificité: capacité à dire que le GBD n'est pas là quand il n'est pas là
+
+P <- PERF
+
+#Avec petite exclusion pas SVM Wrong
 algoinc <- algo0[wrg_svm%in%c("No","Included")]
 tstinc <- tst0[wrg_svm%in%c("No","Included")]
 algoexc <- algo0[!wrg_svm%in%c("No","Included")]
 tstexc <- tst0[!wrg_svm%in%c("No","Included")]
 
-PERF <- rbind(PERF,c(sum(!wrg_svm%in%c("No","Included"))/nrow(tsdt),
-Prec_t(algoexc,tstexc),
-Rec_t(algoexc,tstexc),
-SubsetAcc(algoexc,tstexc),
-Prec_t(algoinc,tstinc),
-Rec_t(algoinc,tstinc),
-SubsetAcc(algoinc,tstinc)))
+#Nb exclus par catégorie
+CM <- conf_matrix(algoexc,tstexc,labs)
+P <- cbind(P,CM[,1]+CM[,4])
+
+#Perf sur inclus
+CM <- conf_matrix(algoinc,tstinc,labs)
+#Nb essais dans le GBD, Sensibilité, Spécificité
+
+PERF <- cbind(CM[,1]+CM[,4],CM[,1]/(CM[,1]+CM[,4]),CM[,3]/(CM[,3]+CM[,2]))
+PERF[PERF[,1]==0 & is.nan(PERF[,2]),2] <- 1
+
+P <- cbind(P,PERF)
+
+
+
+#Perf sur inclus
+PERF <- c(PERF,list(
+rbind(apply(conf_matrix(algoinc,tstinc,labs),1,Sens_l),
+apply(conf_matrix(algoinc,tstinc,labs),1,Sens_l))))
+
+#Perf sur exclus
+PERF <- c(PERF,list(
+rbind(apply(conf_matrix(algoexc,tstexc,labs),1,Spec_l),
+apply(conf_matrix(algoexc,tstexc,labs),1,Sens_l))))
 
 #Avec grosse exclusion par SVM Wrong
 algoinc <- algo0[wrg_svm%in%c("No")]
@@ -97,13 +131,15 @@ tstinc <- tst0[wrg_svm%in%c("No")]
 algoexc <- algo0[!wrg_svm%in%c("No")]
 tstexc <- tst0[!wrg_svm%in%c("No")]
 
-PERF <- rbind(PERF,c(sum(!wrg_svm%in%c("No"))/nrow(tsdt),
-Prec_t(algoexc,tstexc),
-Rec_t(algoexc,tstexc),
-SubsetAcc(algoexc,tstexc),
-Prec_t(algoinc,tstinc),
-Rec_t(algoinc,tstinc),
-SubsetAcc(algoinc,tstinc)))
+#Perf sur inclus
+PERF <- c(PERF,list(
+rbind(apply(conf_matrix(algoinc,tstinc,labs),1,Spec_l),
+apply(conf_matrix(algoinc,tstinc,labs),1,Sens_l))))
 
-return(list(PERF_SVM,PERF))
+#Perf sur exclus
+PERF <- c(PERF,list(rbind(apply(conf_matrix(algoexc,tstexc,labs),1,Spec_l),
+apply(conf_matrix(algoexc,tstexc,labs),1,Sens_l))))
+
+return(PERF)
 }
+

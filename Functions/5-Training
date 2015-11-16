@@ -1,13 +1,11 @@
 #Fonction qui donne MTc en fonction de alpha, et l'output du training du svm en fonction des param
-#SVM1 modèle prédictif: est-ce que l'essai a un GBD ou pas
-#Pour le SVM1, On a l'option de prédire d'avance que l'essai n'a pas de GBD (inc_nogbd_svm = FALSE)
-#Ou bien d'exclure les essais sans GBD de la base d'entrainement
-#SVM2 modèle prédictif: est-ce que je suis classifié correctement ou pas?
-#Pour SVM2: On peut faire 3 niveaux: Yes, No, Included
+#SVM modèle prédictif: est-ce que je suis classifié correctement ou pas?
+#Pour SVM: On peut faire 3 niveaux: Yes, No, Included
+#COND: utilise-t-on priority_condition?
 #COND_only: on ne prend que le GBD de condition field (et non pas les autres) pour la classification (et le training)
 #output: modèle prédictif, en fonction des charact. de l'essai, est-ce qu'on peut être sûr de la classif donnée par le classifieur
 
-training <- function(data,Mgbd,Egbd,MMap,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND=FALSE,COND_only=FALSE){
+training <- function(data,Mgbd,Egbd,MMap,MT,MTEB,alpha,wsd,gamma,cost,COND,COND_only){
 #gamma et cost peuvent être des vecteurs, on fait un tune svm
 
 NCTs <- as.character(data$PMID)
@@ -22,7 +20,7 @@ else return(A[[3]])
 #Characteristiques CUI
 MC <- CUI_charac(Mgbd,Egbd,MMap, MTc)
 
-#On fait le processing pour chaque essai pour wsd
+#On fait le processing pour chaque essai pour wsd avec choix de COND
 i <- 1
 NCT <- paste("pbky",NCTs[i],sep="")
 D <- Trial_charac(Mgbd,Egbd,NCT,MMap,MC,wsd,COND)
@@ -33,13 +31,7 @@ D <- rbind(D,Trial_charac(Mgbd,Egbd,NCT,MMap,MC,wsd,COND))
 D <- data.frame(D,row.names=NULL)
 D <- cbind(D,Nb_mots_chp(data))
 
-#SVM1: NoGBD or YesGBD
-#Test SVM: Unclear or not
-D$Unclear <- factor(data$GBDnp=="")
-#SVM model
-mdl1 <- sup_vm(D,inc_nogbd_svm,gamma,cost)
-
-#SVM2: WrongGBD or CorrectGBD
+#SVM: WrongGBD or CorrectGBD
 #Uncertainty: No si set equal, Included si intersection, Yes si erreur
 tst <- strsplit(as.character(data$GBDnp),"&&")
 #Cond_only
@@ -49,10 +41,9 @@ D$Unclear <- factor(unlist(lapply(1:nrow(data),function(x){	if(setequal(algo[[x]
 						else return("Yes")
 						})))
 #SVM model
-#Par défaut, on inclut tous les essais (inc_nogbd = TRUE)
-mdl2 <- sup_vm(D,TRUE,gamma,cost)
+mdl <- sup_vm(D,gamma,cost)
 
-return(list(MTc,mdl1,mdl2))
+return(list(MTc,mdl))
 
 }
 

@@ -4,7 +4,7 @@
 #Rq: wsd_classif = Yes ou No pas de wsd Duo car on va prédire la classif pour un seul
 #On ne prédit que pour les essais sans GBD
 
-classifier <- function(data,MMap,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND=FALSE,COND_only=FALSE){
+classifier <- function(data,MMap,MTc,wsd,svm_mod_wrong,COND,COND_only){
 
 NCTs <- as.character(data$PMID)
 
@@ -32,22 +32,10 @@ ifelse(COND_only,gbd <- as.character(D$cond_GBD),gbd <- as.character(D$Ess_GBD))
 D <- D[,-grep("_GBD$",names(D))]
 D <- sapply(D,function(x){as.numeric(as.character(x))})
 
-#Pour la prédiction NoGBD/Unclear:
-#Est-ce qu'on inclut ou pas le noGBD dans la prédiction?
-#Le inc_nogbd_svm doit être le même que pour le training
-#Rq: si inc_nogbd_svm = FALSE: attention au recollement predictions svm et gbd, car de différente taille
-#    dans ce cas, prédiction ne vaut que pour les gbd!="" 
-if(inc_nogbd_svm==FALSE) d <- D[gbd!="",]
-else d <- D
-
-#Prédiction de NoGBD
-is_unclear <- predict(svm_mod_unclear$best.model,d)
-
 #Prédiction de WrongGBD
-#Pour la prédiction WrongGBD, on fait toujours avec toute la data
 wrong_gbd <- predict(svm_mod_wrong$best.model,D)
 
-return(list(gbd,is_unclear,wrong_gbd))
+return(list(gbd,wrong_gbd))
 
 }
 

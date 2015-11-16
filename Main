@@ -8,778 +8,192 @@ library(e1071)
 
 #Functions Upload: on upload que les fonctions non temporaires (fichiers finissant par un ~)
 for(x in list.files("./Functions","[a-zA-Z]$")) source(paste("./Functions/",x,sep=""))
+
+#MetaMap data
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
 ##########################################################################################################
-
-#Taxonomy choice
-Tax <- "DL"
-if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
-if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
-
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
-L <- Data_upl(Tax)
-
-Mgbd <- L[[1]]
-Egbd <- L[[2]]
-MT <- L[[3]]
-MTEB <- L[[4]]
-remove(L)
-
-#Alpha choice
+#Param choices: Condition Priority
+#################################################################################
 alpha <- (0.2)/100
-#Wsd choice
 wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
 gamma <- 0.1
 cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- FALSE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
-K <- 10
-set.seed(7212)
-x <- sample(1:nrow(data))
-L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
-
-Ptot <- c()
-t0 <- proc.time()
-for(i in 1:K){
-#i <- sample(1:10,1)
-
-trdt <- data[unlist(L[-i]),]
-NCTstr <- tolower(as.character(trdt$PMID))
-Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
-
-tsdt <- data[unlist(L[i]),]
-NCTsts <- tolower(as.character(tsdt$PMID))
-Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
-
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost)
-
-MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
-remove(TR)
-
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong)
-
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
-
-Ptot <- c(Ptot,PERF)
-}
-#1.7min per i
-#5.7min en tout
-t1 <- proc.time()
-
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
-#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
-#[1,] 0.0000000        NA        NA        NA 0.7503720 0.7708852 0.7167108
-#[2,] 0.1250022 0.5005388 0.5259056 0.4688938 0.7860549 0.8053822 0.7529838
-#[3,] 0.1575982 0.5050520 0.5689037 0.4316221 0.7960994 0.8084986 0.7697272
-#[4,] 0.0000000        NA        NA        NA 0.7398517 0.7582583 0.7080751
-#[5,] 0.1250022 0.4537435 0.4656648 0.4343096 0.7822333 0.8015606 0.7491623
-#[6,] 0.1575982 0.4620993 0.5138065 0.3996644 0.7921561 0.8045553 0.7657840
-
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.8798865 0.4771439
-
-#############################################################################
-#Taxonomy choice
-Tax <- "RL"
-if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
-if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
-
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
-L <- Data_upl(Tax)
-
-Mgbd <- L[[1]]
-Egbd <- L[[2]]
-MT <- L[[3]]
-MTEB <- L[[4]]
-remove(L)
-
-#Alpha choice
-alpha <- (0.2)/100
-#Wsd choice
-wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
-gamma <- 0.1
-cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- FALSE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
-K <- 10
-set.seed(7212)
-x <- sample(1:nrow(data))
-L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
-
-Ptot <- c()
-t0 <- proc.time()
-for(i in 1:K){
-#i <- sample(1:10,1)
-
-trdt <- data[unlist(L[-i]),]
-NCTstr <- tolower(as.character(trdt$PMID))
-Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
-
-tsdt <- data[unlist(L[i]),]
-NCTsts <- tolower(as.character(tsdt$PMID))
-Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
-
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost)
-
-MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
-remove(TR)
-
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong)
-
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
-
-Ptot <- c(Ptot,PERF)
-}
-#1.7min per i
-t1 <- proc.time()
-#4min en tout
-
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
-#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
-#[1,] 0.0000000        NA        NA        NA 0.7526813 0.7654427 0.6867770
-#[2,] 0.1143841 0.5113239 0.5422657 0.4724506 0.7823418 0.7925845 0.7132524
-#[3,] 0.1815276 0.4902745 0.5775799 0.4079087 0.8084302 0.8047403 0.7461310
-#[4,] 0.0000000        NA        NA        NA 0.7428285 0.7557372 0.6801369
-#[5,] 0.1143841 0.4523962 0.4775144 0.4286344 0.7784980 0.7898138 0.7109423
-#[6,] 0.1815276 0.4541586 0.5377177 0.3811905 0.8051111 0.8026210 0.7445233
-
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.8507005 0.7418631
-
-###################################################################################
-#inc_nogbd_svm = TRUE
-###################################################################################
-
-#Taxonomy choice
-Tax <- "DL"
-if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
-if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
-
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
-L <- Data_upl(Tax)
-
-Mgbd <- L[[1]]
-Egbd <- L[[2]]
-MT <- L[[3]]
-MTEB <- L[[4]]
-remove(L)
-
-#Alpha choice
-alpha <- (0.2)/100
-#Wsd choice
-wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
-gamma <- 0.1
-cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- TRUE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
-K <- 10
-set.seed(7212)
-x <- sample(1:nrow(data))
-L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
-
-Ptot <- c()
-t0 <- proc.time()
-for(i in 1:K){
-#i <- sample(1:10,1)
-
-trdt <- data[unlist(L[-i]),]
-NCTstr <- tolower(as.character(trdt$PMID))
-Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
-
-tsdt <- data[unlist(L[i]),]
-NCTsts <- tolower(as.character(tsdt$PMID))
-Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
-
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost)
-
-MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
-remove(TR)
-
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong)
-
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
-
-Ptot <- c(Ptot,PERF)
-}
-#4min en tout
-t1 <- proc.time()
-
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
-#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
-#[1,] 0.0000000        NA        NA        NA 0.7503720 0.7708852 0.7167108
-#[2,] 0.1250022 0.5005388 0.5259056 0.4688938 0.7860549 0.8053822 0.7529838
-#[3,] 0.1575982 0.5050520 0.5689037 0.4316221 0.7960994 0.8084986 0.7697272
-#[4,] 0.0000000        NA        NA        NA 0.7391829 0.7572583 0.7080706
-#[5,] 0.1250022 0.4514203 0.4633416 0.4347641 0.7818517 0.8007973 0.7491623
-#[6,] 0.1575982 0.4587452 0.5085294 0.4005061 0.7921561 0.8045553 0.7657840
-
-
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.9268919 0.3054821
-
-#############################################################################
-#Taxonomy choice
-Tax <- "RL"
-if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
-if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
-
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
-L <- Data_upl(Tax)
-
-Mgbd <- L[[1]]
-Egbd <- L[[2]]
-MT <- L[[3]]
-MTEB <- L[[4]]
-remove(L)
-
-#Alpha choice
-alpha <- (0.2)/100
-#Wsd choice
-wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
-gamma <- 0.1
-cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- TRUE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
-K <- 10
-set.seed(7212)
-x <- sample(1:nrow(data))
-L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
-
-Ptot <- c()
-t0 <- proc.time()
-for(i in 1:K){
-#i <- sample(1:10,1)
-
-trdt <- data[unlist(L[-i]),]
-NCTstr <- tolower(as.character(trdt$PMID))
-Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
-
-tsdt <- data[unlist(L[i]),]
-NCTsts <- tolower(as.character(tsdt$PMID))
-Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
-
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost)
-
-MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
-remove(TR)
-
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong)
-
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
-
-Ptot <- c(Ptot,PERF)
-}
-#1.7min per i
-t1 <- proc.time()
-#4.5min en tout
-
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
-#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
-#[1,] 0.0000000        NA        NA        NA 0.7526813 0.7654427 0.6867770
-#[2,] 0.1143841 0.5113239 0.5422657 0.4724506 0.7823418 0.7925845 0.7132524
-#[3,] 0.1815276 0.4902745 0.5775799 0.4079087 0.8084302 0.8047403 0.7461310
-#[4,] 0.0000000        NA        NA        NA 0.7421530 0.7553929 0.6801236
-#[5,] 0.1143841 0.4495829 0.4747011 0.4258211 0.7784697 0.7901531 0.7116493
-#[6,] 0.1815276 0.4520865 0.5356456 0.3791184 0.8051224 0.8030230 0.7453159
-
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.8907353 0.5645949
-
-##################################################################################################
-#CONDITION PRIORITY
-##################################################################################################
-#Taxonomy choice
-Tax <- "DL"
-if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
-if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
-
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
-L <- Data_upl(Tax)
-
-Mgbd <- L[[1]]
-Egbd <- L[[2]]
-MT <- L[[3]]
-MTEB <- L[[4]]
-remove(L)
-
-#Alpha choice
-alpha <- (0.2)/100
-#Wsd choice
-wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
-gamma <- 0.1
-cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- FALSE
+#Text field: all fields equal, condition priority ou condition only
 COND <- TRUE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
+COND_only <- FALSE
 K <- 10
-set.seed(7212)
-x <- sample(1:nrow(data))
-L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
-Ptot <- c()
+#Taxonomy choice
+################
+Tax <- "DL"
+if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
+if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
+
+#Data upload
+L <- Data_upl(Tax)
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
+
 t0 <- proc.time()
-for(i in 1:K){
-#i <- sample(1:10,1)
-
-trdt <- data[unlist(L[-i]),]
-NCTstr <- tolower(as.character(trdt$PMID))
-Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
-
-tsdt <- data[unlist(L[i]),]
-NCTsts <- tolower(as.character(tsdt$PMID))
-Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
-
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND)
-
-MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
-remove(TR)
-
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND)
-
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
-
-Ptot <- c(Ptot,PERF)
-}
-#1.7min per i
-#5.7min en tout
-t1 <- proc.time()
-
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+set.seed(7212)
+KV <- K_cross_valid(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only)
 #          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
 #[1,] 0.0000000        NA        NA        NA 0.7571917 0.7695541 0.7300132
 #[2,] 0.1289978 0.5155332 0.5320099 0.4855410 0.7932540 0.8045780 0.7671444
 #[3,] 0.1509536 0.5202023 0.5523402 0.4680001 0.7993290 0.8078856 0.7765837
-#[4,] 0.0000000        NA        NA        NA 0.7462270 0.7569272 0.7207108
-#[5,] 0.1289978 0.4623703 0.4682409 0.4429842 0.7901654 0.8014894 0.7640558
-#[6,] 0.1509536 0.4736282 0.4961181 0.4310740 0.7961723 0.8047289 0.7734271
+t1 <- proc.time()
+(t1-t0)/60
+#5.4min
 
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.8798865 0.4771439
-
-#############################################################################
 #Taxonomy choice
+#################
 Tax <- "RL"
 if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
 if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
-
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
+#Data upload
 L <- Data_upl(Tax)
-
 Mgbd <- L[[1]]
 Egbd <- L[[2]]
 MT <- L[[3]]
 MTEB <- L[[4]]
 remove(L)
 
-#Alpha choice
-alpha <- (0.2)/100
-#Wsd choice
-wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
-gamma <- 0.1
-cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- FALSE
-COND <- TRUE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
-K <- 10
-set.seed(7212)
-x <- sample(1:nrow(data))
-L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
-
-Ptot <- c()
 t0 <- proc.time()
-for(i in 1:K){
-#i <- sample(1:10,1)
-
-trdt <- data[unlist(L[-i]),]
-NCTstr <- tolower(as.character(trdt$PMID))
-Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
-
-tsdt <- data[unlist(L[i]),]
-NCTsts <- tolower(as.character(tsdt$PMID))
-Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
-
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND)
-
-MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
-remove(TR)
-
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND)
-
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
-
-Ptot <- c(Ptot,PERF)
-}
-#1.7min per i
-t1 <- proc.time()
-#4min en tout
-
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+set.seed(7212)
+K_cross_valid(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only)
 #          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
 #[1,] 0.0000000        NA        NA        NA 0.7617239 0.7638423 0.7027373
 #[2,] 0.1230375 0.5057095 0.5283948 0.4761418 0.7954584 0.7946172 0.7324827
 #[3,] 0.1669227 0.5012982 0.5493175 0.4372867 0.8114964 0.8041842 0.7530840
-#[4,] 0.0000000        NA        NA        NA 0.7515378 0.7541369 0.6954305
-#[5,] 0.1230375 0.4410121 0.4604359 0.4239938 0.7931572 0.7934177 0.7317474
-#[6,] 0.1669227 0.4627365 0.5078488 0.4081288 0.8082672 0.8021187 0.7515057
+t1 <- proc.time()
+(t1-t0)/60
 
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.8507005 0.7418631
+####################################################################################
+#Param choices: All text fields
+####################################################################################
+alpha <- (0.2)/100
+wsd <- "Yes"
+gamma <- 0.1
+cost <- 110
+#Text field: all fields equal, condition priority ou condition only
+COND <- FALSE
+COND_only <- FALSE
+K <- 10
 
-
-#########################################################################################
-#ONLY CONDITION FIELD
-#########################################################################################
 #Taxonomy choice
+################
 Tax <- "DL"
 if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
 if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
-
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
+#Data upload
 L <- Data_upl(Tax)
-
 Mgbd <- L[[1]]
 Egbd <- L[[2]]
 MT <- L[[3]]
 MTEB <- L[[4]]
 remove(L)
 
-#Alpha choice
-alpha <- (0.2)/100
-#Wsd choice
-wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
-gamma <- 0.1
-cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- FALSE
-COND_only <- TRUE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
-K <- 10
-set.seed(7212)
-x <- sample(1:nrow(data))
-L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
-
-Ptot <- c()
 t0 <- proc.time()
-for(i in 1:K){
-#i <- sample(1:10,1)
-
-trdt <- data[unlist(L[-i]),]
-NCTstr <- tolower(as.character(trdt$PMID))
-Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
-
-tsdt <- data[unlist(L[i]),]
-NCTsts <- tolower(as.character(tsdt$PMID))
-Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
-
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND_only=COND_only)
-
-MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
-remove(TR)
-
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND_only=COND_only)
-
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
-
-Ptot <- c(Ptot,PERF)
-}
-#1.7min per i
-#5.7min en tout
-t1 <- proc.time()
-
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+set.seed(7212)
+K_cross_valid(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only)
 #          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
-#[1,] 0.0000000        NA        NA        NA 0.7420277 0.7645563 0.7133775
-#[2,] 0.1396380 0.4730669 0.4844419 0.4480515 0.7859314 0.8099701 0.7569225
-#[3,] 0.1649183 0.4822134 0.5309139 0.4288765 0.7931318 0.8104648 0.7694454
-#[4,] 0.0000000        NA        NA        NA 0.7290675 0.7499338 0.7020795
-#[5,] 0.1396380 0.4036966 0.4045737 0.3891790 0.7828215 0.8068602 0.7538126
-#[6,] 0.1649183 0.4241484 0.4636314 0.3800289 0.7899637 0.8072968 0.7662774
+#[1,] 0.0000000        NA        NA        NA 0.7503720 0.7708852 0.7167108
+#[2,] 0.1250022 0.5005388 0.5259056 0.4688938 0.7860549 0.8053822 0.7529838
+#[3,] 0.1575982 0.5050520 0.5689037 0.4316221 0.7960994 0.8084986 0.7697272
+t1 <- proc.time()
+(t1-t0)/60
+#5.4min
 
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.8456557 0.5381716
-
-#############################################################################
 #Taxonomy choice
 Tax <- "RL"
 if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
 if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
-
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
+#Data upload
 L <- Data_upl(Tax)
-
 Mgbd <- L[[1]]
 Egbd <- L[[2]]
 MT <- L[[3]]
 MTEB <- L[[4]]
 remove(L)
 
-#Alpha choice
+t0 <- proc.time()
+set.seed(7212)
+K_cross_valid(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only)
+#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#[1,] 0.0000000        NA        NA        NA 0.7526813 0.7654427 0.6867770
+#[2,] 0.1143841 0.5113239 0.5422657 0.4724506 0.7823418 0.7925845 0.7132524
+#[3,] 0.1815276 0.4902745 0.5775799 0.4079087 0.8084302 0.8047403 0.7461310
+t1 <- proc.time()
+(t1-t0)/60
+
+##############################################################################
+#Param choices: NO WSD (condition priority)
+##############################################################################
 alpha <- (0.2)/100
-#Wsd choice
-wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
+wsd <- "No"
 gamma <- 0.1
 cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- FALSE
-COND_only <- TRUE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
+#Text field: all fields equal, condition priority ou condition only
+COND <- TRUE
+COND_only <- FALSE
 K <- 10
-set.seed(7212)
-x <- sample(1:nrow(data))
-L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
-Ptot <- c()
-t0 <- proc.time()
-for(i in 1:K){
-#i <- sample(1:10,1)
-
-trdt <- data[unlist(L[-i]),]
-NCTstr <- tolower(as.character(trdt$PMID))
-Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
-
-tsdt <- data[unlist(L[i]),]
-NCTsts <- tolower(as.character(tsdt$PMID))
-Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
-
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND_only=COND_only)
-
-MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
-remove(TR)
-
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND_only=COND_only)
-
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
-
-Ptot <- c(Ptot,PERF)
-}
-#1.7min per i
-t1 <- proc.time()
-#4min en tout
-
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
-#          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
-#[1,] 0.0000000        NA        NA        NA 0.7375116 0.7654599 0.6860883
-#[2,] 0.1290110 0.4793672 0.4941024 0.4573183 0.7749541 0.8044986 0.7192379
-#[3,] 0.1848653 0.4461530 0.5632421 0.3955156 0.8022316 0.8095567 0.7507713
-#[4,] 0.0000000        NA        NA        NA 0.7279921 0.7558286 0.6787815
-#[5,] 0.1290110 0.4147739 0.4264735 0.4051358 0.7734329 0.8033591 0.7184801
-#[6,] 0.1848653 0.4070758 0.5213548 0.3651126 0.7998211 0.8075594 0.7491873
-
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.8117611 0.8085058
-
-##################################################################################################
-#ALPHA = 0.05 avec condition priority
-##################################################################################################
 #Taxonomy choice
+################
 Tax <- "DL"
 if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
 if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
 
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
+#Data upload
 L <- Data_upl(Tax)
-
 Mgbd <- L[[1]]
 Egbd <- L[[2]]
 MT <- L[[3]]
 MTEB <- L[[4]]
 remove(L)
 
-#Alpha choice
-alpha <- (0.5)/100
-#Wsd choice
-wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
-gamma <- 0.1
-cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- FALSE
-COND <- TRUE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
-K <- 10
-set.seed(7212)
-x <- sample(1:nrow(data))
-L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
-
-Ptot <- c()
 t0 <- proc.time()
-for(i in 1:K){
-#i <- sample(1:10,1)
-
-trdt <- data[unlist(L[-i]),]
-NCTstr <- tolower(as.character(trdt$PMID))
-Mtr <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTstr,sep=""),])
-
-tsdt <- data[unlist(L[i]),]
-NCTsts <- tolower(as.character(tsdt$PMID))
-Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
-
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND)
-
-MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
-remove(TR)
-
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND)
-
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
-
-Ptot <- c(Ptot,PERF)
-}
-#1.7min per i
-#5.7min en tout
-t1 <- proc.time()
-
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+set.seed(7212)
+K_cross_valid(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only)
 #          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
-#[1,] 0.0000000        NA        NA        NA 0.7571917 0.7695541 0.7300132
-#[2,] 0.1615982 0.4712494 0.4908128 0.4544637 0.8121482 0.8225228 0.7838556
-#[3,] 0.1782252 0.4707235 0.5027570 0.4343789 0.8197016 0.8271507 0.7949413
-#[4,] 0.0000000        NA        NA        NA 0.7468893 0.7575894 0.7213731
-#[5,] 0.1615982 0.4299585 0.4410680 0.4216268 0.8096110 0.8199856 0.7813184
-#[6,] 0.1782252 0.4318459 0.4560222 0.4033584 0.8171184 0.8245675 0.7923581
+#[1,] 0.0000000        NA        NA        NA 0.7553028 0.7688830 0.7266843
+#[2,] 0.1436424 0.4809986 0.4931671 0.4705845 0.8011627 0.8149832 0.7697860
+#[3,] 0.1649316 0.4966371 0.5264438 0.4599139 0.8059888 0.8163945 0.7788680
+t1 <- proc.time()
+(t1-t0)/60
+#3.7min
 
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.8799358 0.4771439
-
-#############################################################################
 #Taxonomy choice
+#################
 Tax <- "RL"
 if(Tax=="RL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot.txt")
 if(Tax=="DL") data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
-
-MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
-
-#UMLS_ICD Upload
-UM <- read.table("./Databases/CUI_GBD/data_UMLS_ICD10.txt")
-
+#Data upload
 L <- Data_upl(Tax)
-
 Mgbd <- L[[1]]
 Egbd <- L[[2]]
 MT <- L[[3]]
 MTEB <- L[[4]]
 remove(L)
 
-#Alpha choice
-alpha <- (0.5)/100
-#Wsd choice
-wsd <- "Yes"
-#Gamma and cost choice
-#Manque: mettre des gamma et cost différent par SVM
-gamma <- 0.1
-cost <- 110
-#Including NoGBD for SVM_unclear choice
-inc_nogbd_svm <- FALSE
-COND <- TRUE
-
-#Manque: only condition vs all fields choice
-
-#Mettre le K-fold cross validation dans un programme
-K <- 10
+t0 <- proc.time()
 set.seed(7212)
+K_cross_valid(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only)
+#[1,] 0.0000000        NA        NA        NA 0.7625031 0.7650579 0.7040574
+#[2,] 0.1137439 0.5043092 0.5276846 0.4725245 0.7954362 0.7950889 0.7337383
+#[3,] 0.1642517 0.5184793 0.5624669 0.4425480 0.8103660 0.8042541 0.7545362
+t1 <- proc.time()
+(t1-t0)/60
+
+#################################################################################
+
+
+
+labs <- 0:nrow(Mgbd)
+
 x <- sample(1:nrow(data))
 L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
@@ -796,34 +210,27 @@ tsdt <- data[unlist(L[i]),]
 NCTsts <- tolower(as.character(tsdt$PMID))
 Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
 
-TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,inc_nogbd_svm,gamma,cost,COND)
+TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,gamma,cost,COND,COND_only)
 
 MTc <- TR[[1]]
-svm_mod_unclear <- TR[[2]]
-svm_mod_wrong <- TR[[3]]
+svm_mod_wrong <- TR[[2]]
 remove(TR)
 
-CL <- classifier(tsdt,Mts,MTc,wsd,inc_nogbd_svm,svm_mod_unclear,svm_mod_wrong,COND)
+CL <- classifier(tsdt,Mts,MTc,wsd,svm_mod_wrong,COND,COND_only)
 
-PERF <- Eval_CL(tsdt, CL, inc_nogbd_svm)
+PERF <- Eval_CL(tsdt, CL)
 
-Ptot <- c(Ptot,PERF)
+Ptot <- c(Ptot,list(PERF))
 }
-#1.7min per i
+#5.4min pour une valeur de chaque param.
 t1 <- proc.time()
-#4min en tout
+(t1-t0)/60
 
-apply(simplify2array(Ptot[2*(1:K)]), c(1,2), mean)
+apply(simplify2array(Ptot), c(1,2), mean)
 #          [,1]      [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
-#[1,] 0.0000000        NA        NA        NA 0.7527447 0.7553591 0.6934437
-#[2,] 0.2087682 0.5298741 0.5502586 0.5123043 0.8103903 0.8084211 0.7401176
-#[3,] 0.2586490 0.5079013 0.5441789 0.4661757 0.8376034 0.8289964 0.7721749
-#[4,] 0.0000000        NA        NA        NA 0.7412296 0.7446559 0.6854702
-#[5,] 0.2087682 0.4907082 0.5105717 0.4830419 0.8051641 0.8043971 0.7366311
-#[6,] 0.2586490 0.4838982 0.5197416 0.4501919 0.8302209 0.8228966 0.7666443
-
-apply(simplify2array(Ptot[2*(1:K)-1]), 1, mean)
-#[1] 0.8333908 0.7542862
+#[1,] 0.0000000        NA        NA        NA 0.7503720 0.7708852 0.7167108
+#[2,] 0.1289978 0.5016443 0.5372731 0.4592461 0.7873782 0.8053079 0.7556851
+#[3,] 0.1509536 0.5140155 0.5561863 0.4546052 0.7922428 0.8086489 0.7632310
 
 
 
