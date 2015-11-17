@@ -1,4 +1,5 @@
 #Fonction faisant la K_cross_validation de l'algo et calculant les moyennes des performances
+#Permet comme entrée plusieurs gamma et costs
 
 K_cross_valid <- function(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only){
 
@@ -6,7 +7,8 @@ labs <- 0:nrow(Mgbd)
 x <- sample(1:nrow(data))
 L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
-Ptot_class <- c()
+t0 <- proc.time()
+#Ptot_class <- c()
 Ptot <- c()
 for(i in 1:K){
 #i <- sample(1:K,1)
@@ -26,12 +28,18 @@ svm_mod_wrong <- TR[[2]]
 CL <- classifier(tsdt,Mts,MTc,wsd,svm_mod_wrong,COND,COND_only)
 	
 PERF <- Eval_CL(tsdt, CL)
-PERF_class <- Eval_per_class_CL(tsdt, CL, labs)
+#PERF_class <- Eval_per_class_CL(tsdt, CL, labs)
 
 Ptot <- c(Ptot,list(PERF))
-Ptot_class <- c(Ptot_class,list(PERF_class))
+#Ptot_class <- c(Ptot_class,list(PERF_class))
 }
+t1 <- proc.time() - t0
+#3.8min for 3 gamma and 3 cost
 
-return(list(apply(simplify2array(Ptot), c(1,2), mean),apply(simplify2array(Ptot_class), c(1,2), mean)))
+Prms <- rbind(NA,cbind(rep(gamma,each=length(cost)*2),rep(rep(cost,each=2),times=length(gamma))))
+
+return(list(cbind(Prms,apply(simplify2array(Ptot), c(1,2), mean))
+#,apply(simplify2array(Ptot_class), c(1,2), mean)
+))
 
 }

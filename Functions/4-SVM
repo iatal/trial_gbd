@@ -7,11 +7,7 @@ d <- D[,-grep("_GBD$",names(D))]
 
 d[,-ncol(d)] <- sapply(d[,-ncol(d)],function(x){as.numeric(as.character(x))})
 
-obj <- tune.svm(Unclear ~ ., data = d, gamma = gamma, cost = cost, tunecontrol = tune.control(sampling="cross"))
-
-#4min
-
-return(obj)
+return(svm(Unclear ~ ., data = d, gamma = gamma, cost = cost))
 
 }
 

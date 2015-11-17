@@ -4,27 +4,27 @@
 #Rq: wsd_classif = Yes ou No pas de wsd Duo car on va prédire la classif pour un seul
 #On ne prédit que pour les essais sans GBD
 
-classifier <- function(data,MMap,MTc,wsd,svm_mod_wrong,COND,COND_only){
+classifier <- function(tsdt,Mts,MTc,wsd,svm_mod_wrong,COND,COND_only){
 
-NCTs <- as.character(data$PMID)
+NCTs <- as.character(tsdt$PMID)
 
-A <- Test_add_MT_classif(NCTs,MMap,MTc)
+A <- Test_add_MT_classif(NCTs,Mts,MTc)
 if(A[[1]]==FALSE) return(A[[3]])
 
-MC <- CUI_charac(Mgbd, Egbd, MMap, MTc)
+MC <- CUI_charac(Mgbd, Egbd, Mts, MTc)
 
 #On fait le processing pour chaque essai pour wsd
 i <- 1
 NCT <- paste("pbky",NCTs[i],sep="")
-D <- Trial_charac(Mgbd,Egbd,NCT,MMap,MC,wsd,COND)
+D <- Trial_charac(Mgbd,Egbd,NCT,Mts,MC,wsd,COND)
 for(i in 2:length(NCTs)){
 NCT <- paste("pbky",NCTs[i],sep="")
-D <- rbind(D,Trial_charac(Mgbd,Egbd,NCT,MMap,MC,wsd,COND))
+D <- rbind(D,Trial_charac(Mgbd,Egbd,NCT,Mts,MC,wsd,COND))
 }
 #30s pour 1500 essais
 
 D <- data.frame(D,row.names=NULL)
-D <- cbind(D,Nb_mots_chp(data))
+D <- cbind(D,Nb_mots_chp(tsdt))
 
 ifelse(COND_only,gbd <- as.character(D$cond_GBD),gbd <- as.character(D$Ess_GBD))
 
@@ -33,7 +33,7 @@ D <- D[,-grep("_GBD$",names(D))]
 D <- sapply(D,function(x){as.numeric(as.character(x))})
 
 #Prédiction de WrongGBD
-wrong_gbd <- predict(svm_mod_wrong$best.model,D)
+wrong_gbd <- lapply(svm_mod_wrong,function(mdl){predict(mdl,D)})
 
 return(list(gbd,wrong_gbd))
 

@@ -5,12 +5,13 @@
 #COND_only: on ne prend que le GBD de condition field (et non pas les autres) pour la classification (et le training)
 #output: modèle prédictif, en fonction des charact. de l'essai, est-ce qu'on peut être sûr de la classif donnée par le classifieur
 
-training <- function(data,Mgbd,Egbd,MMap,MT,MTEB,alpha,wsd,gamma,cost,COND,COND_only){
+training <- function(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,gamma,cost,COND,COND_only){
 #gamma et cost peuvent être des vecteurs, on fait un tune svm
 
-NCTs <- as.character(data$PMID)
+NCTs <- as.character(trdt$PMID)
 
-A <- Test_add_MT(NCTs,MMap,MT,MTEB,alpha)
+A <- Test_add_MT(NCTs,Mtr,MT,MTEB,alpha)
+#4.6s for trset 1354 essais
 
 #Si pas besoin d'ajout, création de MTc
 if(A[[1]]) MTc <- A[[2]]
@@ -18,30 +19,37 @@ if(A[[1]]) MTc <- A[[2]]
 else return(A[[3]])
 
 #Characteristiques CUI
-MC <- CUI_charac(Mgbd,Egbd,MMap, MTc)
+MC <- CUI_charac(Mgbd,Egbd,Mtr, MTc)
+#4.8s for trset 1354 essais
 
 #On fait le processing pour chaque essai pour wsd avec choix de COND
 i <- 1
 NCT <- paste("pbky",NCTs[i],sep="")
-D <- Trial_charac(Mgbd,Egbd,NCT,MMap,MC,wsd,COND)
+D <- Trial_charac(Mgbd,Egbd,NCT,Mtr,MC,wsd,COND)
 for(i in 2:length(NCTs)){
 NCT <- paste("pbky",NCTs[i],sep="")
-D <- rbind(D,Trial_charac(Mgbd,Egbd,NCT,MMap,MC,wsd,COND))
+D <- rbind(D,Trial_charac(Mgbd,Egbd,NCT,Mtr,MC,wsd,COND))
 }
 D <- data.frame(D,row.names=NULL)
-D <- cbind(D,Nb_mots_chp(data))
+D <- cbind(D,Nb_mots_chp(trdt))
+#7.1s for trset 1354 essais
 
 #SVM: WrongGBD or CorrectGBD
 #Uncertainty: No si set equal, Included si intersection, Yes si erreur
-tst <- strsplit(as.character(data$GBDnp),"&&")
+tst <- strsplit(as.character(trdt$GBDnp),"&&")
 #Cond_only
 ifelse(COND_only,algo <- strsplit(as.character(D$cond_GBD),"&"),algo <- strsplit(as.character(D$Ess_GBD),"&"))
-D$Unclear <- factor(unlist(lapply(1:nrow(data),function(x){	if(setequal(algo[[x]],tst[[x]])) return("No")
+D$Unclear <- factor(unlist(lapply(1:nrow(trdt),function(x){	if(setequal(algo[[x]],tst[[x]])) return("No")
 						else if(length(intersect(algo[[x]],tst[[x]]))>0) return("Included")
 						else return("Yes")
 						})))
 #SVM model
-mdl <- sup_vm(D,gamma,cost)
+Prms <- cbind(rep(gamma,each=length(cost)),rep(cost,times=length(gamma)))
+mdl <- lapply(1:nrow(Prms),function(k){ gamma <- Prms[k,1]
+					cost <- Prms[k,2]
+					sup_vm(D,gamma,cost)})
+#0.4s for trset 1354 essais, 1 gamma et 1 cost
+#5.4s for trset 1354 essais, 3 gamma et 3 cost
 
 return(list(MTc,mdl))
 

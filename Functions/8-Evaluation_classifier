@@ -1,7 +1,6 @@
 #Evaluation of a classifier
 #############################
 #On évalue la sensibilité et la spécificité de chaque SVM
-#Pour SVM Unclear: on considère comme vrais positifs les essais classifiables que j'ai dit qu'étaient classifiables
 #Pour SVM Wrong: on considère comme vrais positifs les essais dont ma classif est correcte que j'ai dit que la classif était correcte
 #Pour la tache de classification vers GBD:
 #Plus la moyenne des precisions et recall par essai en tenant en compte chaque SVM, et sans SVM
@@ -9,7 +8,7 @@
 Eval_CL <- function(tsdt, CL){
 
 gbd <- CL[[1]]
-wrg_svm <- CL[[2]]
+wrg_SVM <- CL[[2]]
 
 algo <- strsplit(gbd,"&")
 dt <- as.character(tsdt$GBDnp)
@@ -27,13 +26,15 @@ tst0 <- AjoutZ(tst)
 #Sans exclure des données
 PERF <- rbind(PERF,c(0,NA,NA,NA,Prec_t(algo0,tst0),Rec_t(algo0,tst0),SubsetAcc(algo0,tst0)))
 
+PERF <- rbind(PERF,do.call('rbind',lapply(wrg_SVM,function(wrg_svm){
+PR <- c()
 #Avec petite exclusion par SVM Wrong
 algoinc <- algo0[wrg_svm%in%c("No","Included")]
 tstinc <- tst0[wrg_svm%in%c("No","Included")]
 algoexc <- algo0[!wrg_svm%in%c("No","Included")]
 tstexc <- tst0[!wrg_svm%in%c("No","Included")]
 
-PERF <- rbind(PERF,c(sum(!wrg_svm%in%c("No","Included"))/nrow(tsdt),
+PR <- rbind(PR,c(sum(!wrg_svm%in%c("No","Included"))/nrow(tsdt),
 Prec_t(algoexc,tstexc),
 Rec_t(algoexc,tstexc),
 SubsetAcc(algoexc,tstexc),
@@ -47,13 +48,15 @@ tstinc <- tst0[wrg_svm%in%c("No")]
 algoexc <- algo0[!wrg_svm%in%c("No")]
 tstexc <- tst0[!wrg_svm%in%c("No")]
 
-PERF <- rbind(PERF,c(sum(!wrg_svm%in%c("No"))/nrow(tsdt),
+PR <- rbind(PR,c(sum(!wrg_svm%in%c("No"))/nrow(tsdt),
 Prec_t(algoexc,tstexc),
 Rec_t(algoexc,tstexc),
 SubsetAcc(algoexc,tstexc),
 Prec_t(algoinc,tstinc),
 Rec_t(algoinc,tstinc),
 SubsetAcc(algoinc,tstinc)))
+return(PR)
+})))
 
 return(PERF)
 }
