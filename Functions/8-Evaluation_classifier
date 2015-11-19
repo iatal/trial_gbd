@@ -4,6 +4,7 @@
 #Pour SVM Wrong: on considère comme vrais positifs les essais dont ma classif est correcte que j'ai dit que la classif était correcte
 #Pour la tache de classification vers GBD:
 #Plus la moyenne des precisions et recall par essai en tenant en compte chaque SVM, et sans SVM
+#Permet que dans CL il y a ait plusieurs svms.
 
 Eval_CL <- function(tsdt, CL){
 
@@ -26,6 +27,8 @@ tst0 <- AjoutZ(tst)
 #Sans exclure des données
 PERF <- rbind(PERF,c(0,NA,NA,NA,Prec_t(algo0,tst0),Rec_t(algo0,tst0),SubsetAcc(algo0,tst0)))
 
+#Cas SVM vs No SVM
+if(length(wrg_SVM)!=0){
 PERF <- rbind(PERF,do.call('rbind',lapply(wrg_SVM,function(wrg_svm){
 PR <- c()
 #Avec petite exclusion par SVM Wrong
@@ -57,6 +60,7 @@ Rec_t(algoinc,tstinc),
 SubsetAcc(algoinc,tstinc)))
 return(PR)
 })))
+}
 
 return(PERF)
 }
@@ -73,7 +77,7 @@ return(PERF)
 Eval_per_class_CL <- function(tsdt, CL, labs){
 
 gbd <- CL[[1]]
-wrg_svm <- CL[[2]]
+wrg_svm <- unlist(CL[[2]])
 
 algo <- strsplit(gbd,"&")
 dt <- as.character(tsdt$GBDnp)

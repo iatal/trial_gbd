@@ -32,8 +32,10 @@ ifelse(COND_only,gbd <- as.character(D$cond_GBD),gbd <- as.character(D$Ess_GBD))
 D <- D[,-grep("_GBD$",names(D))]
 D <- sapply(D,function(x){as.numeric(as.character(x))})
 
+#Cas SVM vs No SVM
 #Prédiction de WrongGBD
-wrong_gbd <- lapply(svm_mod_wrong,function(mdl){predict(mdl,D)})
+if(length(svm_mod_wrong)!=0) wrong_gbd <- lapply(svm_mod_wrong,function(mdl){predict(mdl,D)})
+else wrong_gbd <- NULL
 
 return(list(gbd,wrong_gbd))
 

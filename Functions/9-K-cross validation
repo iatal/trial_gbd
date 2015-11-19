@@ -1,5 +1,6 @@
 #Fonction faisant la K_cross_validation de l'algo et calculant les moyennes des performances
 #Permet comme entrée plusieurs gamma et costs
+#Pour l'évaluation per class, on ne le fait que pour un SVM
 
 K_cross_valid <- function(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only){
 
@@ -8,8 +9,10 @@ x <- sample(1:nrow(data))
 L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
 t0 <- proc.time()
-#Ptot_class <- c()
 Ptot <- c()
+
+if(length(gamma)==1 & length(cost)==1) Ptot_class <- c()
+
 for(i in 1:K){
 #i <- sample(1:K,1)
 trdt <- data[unlist(L[-i]),]
@@ -28,18 +31,22 @@ svm_mod_wrong <- TR[[2]]
 CL <- classifier(tsdt,Mts,MTc,wsd,svm_mod_wrong,COND,COND_only)
 	
 PERF <- Eval_CL(tsdt, CL)
-#PERF_class <- Eval_per_class_CL(tsdt, CL, labs)
-
 Ptot <- c(Ptot,list(PERF))
-#Ptot_class <- c(Ptot_class,list(PERF_class))
+
+if(length(gamma)==1 & length(cost)==1){	PERF_class <- Eval_per_class_CL(tsdt, CL, labs)
+					Ptot_class <- c(Ptot_class,list(PERF_class))}
 }
 t1 <- proc.time() - t0
 #3.8min for 3 gamma and 3 cost
 
+#Si SVM
+if(length(gamma)!=0 & length(cost)!=0){
 Prms <- rbind(NA,cbind(rep(gamma,each=length(cost)*2),rep(rep(cost,each=2),times=length(gamma))))
 
-return(list(cbind(Prms,apply(simplify2array(Ptot), c(1,2), mean))
-#,apply(simplify2array(Ptot_class), c(1,2), mean)
-))
+ifelse(length(gamma)==1 & length(cost)==1, 	return(list(cbind(Prms,apply(simplify2array(Ptot), c(1,2), mean)),apply(simplify2array(Ptot_class), c(1,2), mean))), 
+						return(list(cbind(Prms,apply(simplify2array(Ptot), c(1,2), mean)))))
+}
+#Si NoSVM
+else return(apply(simplify2array(Ptot), c(1,2), mean))
 
 }
