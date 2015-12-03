@@ -1,9 +1,9 @@
 #Evaluation of a classifier
 #############################
-#On évalue la sensibilité et la spécificité de chaque SVM
-#Pour SVM Wrong: on considère comme vrais positifs les essais dont ma classif est correcte que j'ai dit que la classif était correcte
-#Pour la tache de classification vers GBD:
-#Plus la moyenne des precisions et recall par essai en tenant en compte chaque SVM, et sans SVM
+#Perfs: Précision, Recall et SubsetAcc (exact-matching)
+#Deux options: soit il y a de SVM, soit pas de SVM
+#Si pas de SVM: perfs globales
+#Si SVM: perfs sur chaque niveau de confiance prédit par le SVM
 #Permet que dans CL il y a ait plusieurs svms.
 
 Eval_CL <- function(tsdt, CL){
@@ -15,51 +15,35 @@ algo <- strsplit(gbd,"&")
 dt <- as.character(tsdt$GBDnp)
 tst <- strsplit(dt,"&&")
 
-#On calcule la Précision, Recall et SubsetAcc pour
-#Les data exclues et incluses par SVM Wrong dans les deux configurations de celui-ci
-#Et pourcentage de data exclues dans chaque cas
-
-PERF <- c()
 
 algo0 <- AjoutZ(algo)
 tst0 <- AjoutZ(tst)
 
-#Sans exclure des données
-PERF <- rbind(PERF,c(0,NA,NA,NA,Prec_t(algo0,tst0),Rec_t(algo0,tst0),SubsetAcc(algo0,tst0)))
+#Si pas de SVM: on donne les perfs sans exclure des données
+if(length(wrg_SVM)==0){
+PERF <- c(Prec_t(algo0,tst0),Rec_t(algo0,tst0),SubsetAcc(algo0,tst0))
+}
 
-#Cas SVM vs No SVM
+#Si SVM: on calcule les perfs sur les sous-ensembles
+#On met en lignes les différents SVMs
 if(length(wrg_SVM)!=0){
-PERF <- rbind(PERF,do.call('rbind',lapply(wrg_SVM,function(wrg_svm){
-PR <- c()
-#Avec petite exclusion par SVM Wrong
-algoinc <- algo0[wrg_svm%in%c("No","Included")]
-tstinc <- tst0[wrg_svm%in%c("No","Included")]
-algoexc <- algo0[!wrg_svm%in%c("No","Included")]
-tstexc <- tst0[!wrg_svm%in%c("No","Included")]
+PERF <- do.call('rbind',lapply(wrg_SVM,function(wrg_svm){
 
-PR <- rbind(PR,c(sum(!wrg_svm%in%c("No","Included"))/nrow(tsdt),
-Prec_t(algoexc,tstexc),
-Rec_t(algoexc,tstexc),
-SubsetAcc(algoexc,tstexc),
-Prec_t(algoinc,tstinc),
-Rec_t(algoinc,tstinc),
-SubsetAcc(algoinc,tstinc)))
+#SVM = No -> Exact-matching
+algono <- algo0[wrg_svm=="No"]
+tstno <- tst0[wrg_svm=="No"]
+#SVM = Included -> Non-empty intersection
+algoinc <- algo0[wrg_svm=="Included"]
+tstinc <- tst0[wrg_svm=="Included"]
+#SVM = Yes -> Empty intersection
+algoyes <- algo0[wrg_svm=="Yes"]
+tstyes <- tst0[wrg_svm=="Yes"]
 
-#Avec grosse exclusion par SVM Wrong
-algoinc <- algo0[wrg_svm%in%c("No")]
-tstinc <- tst0[wrg_svm%in%c("No")]
-algoexc <- algo0[!wrg_svm%in%c("No")]
-tstexc <- tst0[!wrg_svm%in%c("No")]
-
-PR <- rbind(PR,c(sum(!wrg_svm%in%c("No"))/nrow(tsdt),
-Prec_t(algoexc,tstexc),
-Rec_t(algoexc,tstexc),
-SubsetAcc(algoexc,tstexc),
-Prec_t(algoinc,tstinc),
-Rec_t(algoinc,tstinc),
-SubsetAcc(algoinc,tstinc)))
+PR <- c(sum(wrg_svm=="No")/nrow(tsdt),Prec_t(algono,tstno),Rec_t(algono,tstno),SubsetAcc(algono,tstno),
+	sum(wrg_svm=="Included")/nrow(tsdt),Prec_t(algoinc,tstinc),Rec_t(algoinc,tstinc),SubsetAcc(algoinc,tstinc),
+	sum(wrg_svm=="Yes")/nrow(tsdt),Prec_t(algoyes,tstyes),Rec_t(algoyes,tstyes),SubsetAcc(algoyes,tstyes))
 return(PR)
-})))
+}))
 }
 
 return(PERF)

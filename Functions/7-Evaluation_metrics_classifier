@@ -39,17 +39,20 @@ return(data0)
 
 SubsetAcc <- function(algo0,data0){
 #Exact match ratio
+if(length(data0)==0) return(NA)
 mean(as.numeric(unlist(lapply(1:length(data0),function(i){setequal(data0[[i]],algo0[[i]])}))))
 }
 
 Prec_t <- function(algo0,data0){
 #Mean of Percentages of retrieved categories that are relevant
 #On donne le gpe 0 aux classif vides pour formule dans l'algèbre du pb =)
+if(length(data0)==0) return(NA)
 mean(unlist(lapply(1:length(data0),function(i){length(intersect(data0[[i]],algo0[[i]]))/length(algo0[[i]])})))
 }
 
 Rec_t <- function(algo0,data0){
 #Mean of Percentages of the relevant categories that are retrieved
+if(length(data0)==0) return(NA)
 mean(unlist(lapply(1:length(data0),function(i){length(intersect(data0[[i]],algo0[[i]]))/length(data0[[i]])})))
 }
 
@@ -57,11 +60,13 @@ sym_diff <- function(a,b) setdiff(union(a,b), intersect(a,b))
 
 HammingLoss <- function(algo0,data0,lab){
 #lab désigne la taille de l'espace des labels
+if(length(data0)==0) return(NA)
 mean(as.numeric(unlist(lapply(1:length(data0),function(i){length(sym_diff(data0[[i]],algo0[[i]]))}))))/lab
 }
 
 Acc_t <- function(algo0,data0){
 #Mean of Percentages of overall match
+if(length(data0)==0) return(NA)
 mean(unlist(lapply(1:length(data0),function(i){length(intersect(data0[[i]],algo0[[i]]))/length(unique(union(algo0[[i]],data0[[i]])))})))
 }
 

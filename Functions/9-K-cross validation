@@ -1,17 +1,19 @@
 #Fonction faisant la K_cross_validation de l'algo et calculant les moyennes des performances
-#Permet comme entrée plusieurs gamma et costs
-#Pour l'évaluation per class, on ne le fait que pour un SVM
+#Cross validation peut se faire à deux moments: soit pour tester le classifieur, sans SVM, soit pour tester le SVM
+#Pour le SVM, Permet comme entrée plusieurs gamma et costs
+#Pour le SVM: output = performances classifieur sur les différents niveaux de confiance prédits, avec leur taille
 
 K_cross_valid <- function(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only){
+#Si gamma = NULL et cost = NULL, on fait l'évaluation du classifieur sans SVM
+#Si gamma et cost != NULL, on fait l'évaluation du classifieur sur les prédictions du SVM
 
 labs <- 0:nrow(Mgbd)
 x <- sample(1:nrow(data))
 L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
-t0 <- proc.time()
 Ptot <- c()
 
-if(length(gamma)==1 & length(cost)==1) Ptot_class <- c()
+#if(length(gamma)==1 & length(cost)==1) Ptot_class <- c()
 
 for(i in 1:K){
 #i <- sample(1:K,1)
@@ -24,29 +26,34 @@ NCTsts <- tolower(as.character(tsdt$PMID))
 Mts <- droplevels(MMap[MMap$NCT%in%paste("pbky",NCTsts,sep=""),])
 
 TR <- training(trdt,Mgbd,Egbd,Mtr,MT,MTEB,alpha,wsd,gamma,cost,COND,COND_only)
+#Si gamma = NULL et cost = NULL, svm_mod_wrong = NULL
 
 MTc <- TR[[1]]
 svm_mod_wrong <- TR[[2]]
 
 CL <- classifier(tsdt,Mts,MTc,wsd,svm_mod_wrong,COND,COND_only)
-	
+#Si svm_mod_wrong = NULL, l'output du classifieur est classif + NULL
+#Si svm_mod_wrong != NULL, l'output du classifieur est classif + prediction SVM
+
 PERF <- Eval_CL(tsdt, CL)
 Ptot <- c(Ptot,list(PERF))
 
-if(length(gamma)==1 & length(cost)==1){	PERF_class <- Eval_per_class_CL(tsdt, CL, labs)
-					Ptot_class <- c(Ptot_class,list(PERF_class))}
+#if(length(gamma)==1 & length(cost)==1){	PERF_class <- Eval_per_class_CL(tsdt, CL, labs)
+#					Ptot_class <- c(Ptot_class,list(PERF_class))}
+
 }
-t1 <- proc.time() - t0
 #3.8min for 3 gamma and 3 cost
 
 #Si SVM
 if(length(gamma)!=0 & length(cost)!=0){
-Prms <- rbind(NA,cbind(rep(gamma,each=length(cost)*2),rep(rep(cost,each=2),times=length(gamma))))
+#Prms <- rbind(NA,cbind(rep(gamma,each=length(cost)*2),rep(rep(cost,each=2),times=length(gamma))))
+Prms <- cbind(rep(gamma,each=length(cost)),rep(cost,times=length(gamma)))
 
-ifelse(length(gamma)==1 & length(cost)==1, 	return(list(cbind(Prms,apply(simplify2array(Ptot), c(1,2), mean)),apply(simplify2array(Ptot_class), c(1,2), mean))), 
-						return(list(cbind(Prms,apply(simplify2array(Ptot), c(1,2), mean)))))
+#ifelse(length(gamma)==1 & length(cost)==1, 	return(list(cbind(Prms,apply(simplify2array(Ptot), c(1,2), mean)),apply(simplify2array(Ptot_class), c(1,2), mean))), 
+						return(list(cbind(Prms,apply(simplify2array(Ptot), c(1,2), function(d){mean(d,na.rm=TRUE)}))))
+#						)
 }
 #Si NoSVM
-else return(apply(simplify2array(Ptot), c(1,2), mean))
+else return(apply(simplify2array(Ptot), 1, function(d){mean(d,na.rm=TRUE)}))
 
 }
