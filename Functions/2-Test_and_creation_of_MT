@@ -36,7 +36,7 @@ Test_add_MT <- function(NCTs,MMap,MT,MTEB,alpha){
 
 	#Manual work checking: est-ce que tous les cui no gbd avec freq sup alpha ont ete manuellement mappés
 	#Erreur et donner liste pour manuel
-	if(sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%MTEB$CUIinp) !=0) {
+	if(alpha != 0 & sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%MTEB$CUIinp) !=0) {
 		print(paste(c("nb trials = ", length(NCTs), ", alpha = ", alpha ,". Need manual validation of ",sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%MTEB$CUIinp)," concepts"),collapse=""))
 		return(list(FALSE,NULL,nogbd[fnogbd>=alpha*nrow(MMap) & !nogbd%in%MTEB$CUIinp]))
 	}
