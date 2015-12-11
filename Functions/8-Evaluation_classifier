@@ -113,6 +113,36 @@ return(PERF)
 
 }
 
+#######################################################
+#Evaluation SVM: on évalue à quel point on a bien prédit le groupe
+######################
+
+Eval_SVM <- function(tsdt, CL){
+
+gbd <- CL[[1]]
+wrg_SVM <- CL[[2]]
+
+algo <- strsplit(gbd,"&")
+dt <- as.character(tsdt$GBDnp)
+tst <- strsplit(dt,"&&")
+
+Unclear <- unlist(lapply(1:nrow(tsdt),function(x){	if(setequal(algo[[x]],tst[[x]])) return("No")
+						else if(length(intersect(algo[[x]],tst[[x]]))>0) return("Included")
+						else return("Yes")
+						}))
+
+RS <- do.call('rbind',lapply(wrg_SVM,function(wrg_svm){
+CM <- conf_matrix_svm(as.character(wrg_svm),Unclear,c("No","Included","Yes"))
+#TP, FP, TN, FN
+#Average accuracy, Precision and recall per class averaged across classes
+return(c(apply(cbind((CM[,1]+CM[,3])/(CM[,1]+CM[,2]+CM[,3]+CM[,4]),CM[,1]/(CM[,1]+CM[,2]),CM[,1]/(CM[,1]+CM[,4])),2,function(x){mean(x,na.rm=TRUE)}),
+#Macro precisions and recall
+sum(CM[,1])/sum(CM[,1]+CM[,2]),sum(CM[,1])/sum(CM[,1]+CM[,4])))
+}))
+
+return(cbind(RS[,1],2*RS[,2]*RS[,3]/(RS[,2]+RS[,3]),2*RS[,4]*RS[,5]/(RS[,4]+RS[,5])))
+
+}
 
 ########################################################
 #Evaluation per class

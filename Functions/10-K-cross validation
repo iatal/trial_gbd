@@ -13,6 +13,7 @@ L <- split(x,ceiling(seq_along(x)/(length(x)/K)))
 
 Ptot <- c()
 Ptot_class <- c()
+Ptot_SVM <- c()
 
 t0 <- proc.time()
 for(i in 1:K){
@@ -40,15 +41,19 @@ Ptot <- c(Ptot,list(PERF))
 
 PERF_class <- Eval_per_class_CL(tsdt, CL, labs)
 Ptot_class <- c(Ptot_class,list(PERF_class))
+
+PERF_svm <- Eval_SVM(tsdt, CL)
+Ptot_SVM <-  c(Ptot_SVM,list(PERF_svm))
 }
 t1 <- proc.time() - t0
-#4.9min for 5 gamma and 3 cost
+#7min for 5 gamma and 4 cost
 #50s for NoSVM
 
 #Si SVM
-#On renvoit 2 éléments
+#On renvoit 3 éléments
 #1- Pourcentage, Precision, Recall, Exact-match moyen pour chaque sous-ensemble (en colonnes) et chaque SVM (en lignes)
 #2- Sens et Spec moyen across categories pour chaque sous-ensemble (en colonnes) et chaque SVM (en lignes)
+#3- Average accuracy, micro and macro averaged F1 score of the SVM prediction task
 if(length(gamma)!=0 & length(cost)!=0){
 Prms <- cbind(rep(gamma,each=length(cost)),rep(cost,times=length(gamma)))
 return(list(
@@ -62,7 +67,8 @@ lapply(Ptot_class,function(x){	do.call('rbind',
 					#Pour chaque sous-ensemble de prédiction on fait la moyenne across categories
 					unlist(lapply(y,function(z){apply(z[,2:3],2,function(t){mean(t,na.rm=TRUE)})}))
 					}))
-					})), c(1,2), function(d){mean(d,na.rm=TRUE)}))
+					})), c(1,2), function(d){mean(d,na.rm=TRUE)})),
+cbind(Prms,apply(simplify2array(Ptot_SVM), c(1,2), function(d){mean(d,na.rm=TRUE)}))
 ))
 }
 

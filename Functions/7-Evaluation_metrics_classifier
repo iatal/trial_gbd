@@ -141,3 +141,21 @@ micro_av <- function(cm,fun){
 fun(apply(cm,2,sum))
 }
 
+###############################
+#Conf matrix SVM
+#True positives pour le label predit (character%in% No, Included, Yes)
+TP_svm <- function(algo0,data0,lab){sum((algo0==lab)*(data0==lab))}
+
+#False positives
+FP_svm <- function(algo0,data0,lab){sum((algo0==lab)*(data0!=lab))}
+
+#True negatives
+TN_svm <- function(algo0,data0,lab){sum((algo0!=lab)*(data0!=lab))}
+
+#False negatives
+FN_svm <- function(algo0,data0,lab){sum((algo0!=lab)*(data0==lab))}
+
+conf_matrix_svm <- function(algo0,data0,lab_list){
+do.call(rbind,lapply(lab_list,function(l){c(TP_svm(algo0,data0,l),FP_svm(algo0,data0,l),TN_svm(algo0,data0,l),FN_svm(algo0,data0,l))}))
+}
+
