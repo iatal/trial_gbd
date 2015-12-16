@@ -37,7 +37,7 @@ D <- sapply(D,function(x){as.numeric(as.character(x))})
 if(length(svm_mod_wrong)!=0) wrong_gbd <- lapply(svm_mod_wrong,function(mdl){predict(mdl,D)})
 else wrong_gbd <- NULL
 
-return(list(gbd,wrong_gbd))
+return(list(gbd,wrong_gbd,D))
 
 }
 

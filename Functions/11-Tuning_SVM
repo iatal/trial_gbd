@@ -1,0 +1,32 @@
+Tuning_SVM <- function(data,MMap,Mgbd,Egbd,MT,MTEB,K,alpha,wsd,gamma,cost,COND,COND_only){
+#Si gamma = NULL et cost = NULL, on fait l'évaluation du classifieur sans SVM
+#Si gamma et cost != NULL, on fait l'évaluation du classifieur sur les prédictions du SVM
+
+tst <- strsplit(as.character(data$GBDnp),"&&")
+labs <- 0:nrow(Mgbd)
+
+TR <- training(data,Mgbd,Egbd,MMap,MT,MTEB,alpha,wsd,gamma=NULL,cost=NULL,COND,COND_only)
+MTc <- TR[[1]]
+svm_mod_wrong <- TR[[2]]
+
+CL <- classifier(data,MMap,MTc,wsd,svm_mod_wrong=NULL,COND,COND_only)
+algo <- strsplit(CL[[1]],"&")
+D <- CL[[3]]
+
+#sacarle los F_max
+D <- D[,-grep("F_max",colnames(D))]
+D <- data.frame(D)
+
+D$Unclear <- factor(unlist(lapply(1:nrow(data),function(x){	if(setequal(algo[[x]],tst[[x]])) return("No")
+						else if(length(intersect(algo[[x]],tst[[x]]))>0) return("Included")
+						else return("Yes")
+						})))
+
+D[,-ncol(D)] <- sapply(D[,-ncol(D)],function(x){as.numeric(as.character(x))})
+
+obj <- tune.svm(Unclear~.,data=D,gamma=gamma,cost=cost,tune.control="cross",cross=10)
+
+}
+
+
+

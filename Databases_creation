@@ -86,6 +86,12 @@ IM[IM[,1]=="C0949179",3:5] <- c("manual_rep","C0949179","Edentulism NOS")
 #We suppress "C0027765"
 IM[IM[,1]=="C0878773",3:5] <- c("manual_rep","C0005686;C0029776;C0156271;C0478133","Urinary Bladder Diseases;Other specified disorders of bladder;Other disorders of bladder;Other and unspecified symptoms and signs involving the urinary system")
 
+#Concept "C0242656": Disease Progression 
+#Mapped to "C0027651": Neoplasms
+#We supress it
+IM[IM[,1]=="C0242656",3:5] <- c("manual_rep",NA,NA)
+
+
 IM <- data.frame(IM)
 
 
