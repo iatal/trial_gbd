@@ -6,7 +6,7 @@
 #Folder CUI_GBD:
 #data_UMLS_ICD.txt: has all the UMLS concepts having ICD10 codes
 #Expert_based_enrichment: manual classification of UMLS concepts to the Ranking_list GBD taxonomy: Up to date: 3 manual classifications
-#IntraMap_output: IntraMap output of UMLS concepts not appearing in the data_UMS_ICD.txt database: Up to date: 7 IntraMap calls
+#IntraMap_output: IntraMap output of UMLS concepts not appearing in the data_UMS_ICD.txt database: Up to date: 8 IntraMap calls
 
 #Folders Taxonomy_RL and _DL
 #GBD_data: contains 2 databases: 	GBD_ICD.txt giving the correspondence GBD to ICD10
@@ -91,6 +91,12 @@ IM[IM[,1]=="C0878773",3:5] <- c("manual_rep","C0005686;C0029776;C0156271;C047813
 #We supress it
 IM[IM[,1]=="C0242656",3:5] <- c("manual_rep",NA,NA)
 
+#Concept "C0687702": Cancer Remission
+#Mapped to "C0027651": Neoplasms
+#But comes from MetaMap indexing of word "remission"
+#We supress it
+IM[IM[,1]=="C0687702",3:5] <- c("manual_rep",NA,NA)
+
 
 IM <- data.frame(IM)
 
@@ -135,6 +141,13 @@ JD <- JD[JD$CUIinp!="C0332679" | JD$GBD!="0",]
 #Mapped manually to NoGBD and to Adverse effects of medical treatment
 #We map it to Adverse effects
 JD <- JD[JD$CUIinp!="C1368999" | JD$GBD!="0",]
+
+#Concept "C0206655": Alveolar rhabdomyosarcoma
+#Appears after indexing of text "Arm" in MetaMap
+#Was manually mapped to Neoplasms
+#We suppress that manual projection
+JD <- JD[JD$CUIinp!="C0206655",]
+
 
 JD <- droplevels(JD)
 
