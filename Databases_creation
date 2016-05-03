@@ -6,7 +6,7 @@
 #Folder CUI_GBD:
 #data_UMLS_ICD.txt: has all the UMLS concepts having ICD10 codes
 #Expert_based_enrichment: manual classification of UMLS concepts to the Ranking_list GBD taxonomy: Up to date: 3 manual classifications
-#IntraMap_output: IntraMap output of UMLS concepts not appearing in the data_UMS_ICD.txt database: Up to date: 8 IntraMap calls
+#IntraMap_output: IntraMap output of UMLS concepts not appearing in the data_UMS_ICD.txt database: Up to date: 11 IntraMap calls
 
 #Folders Taxonomy_RL and _DL
 #GBD_data: contains 2 databases: 	GBD_ICD.txt giving the correspondence GBD to ICD10
@@ -24,6 +24,7 @@
 ##############################################################################
 #COMMON INPUTS: UMLS and INTRAMAP
 ##############################################################################
+t0 <- proc.time()
 setwd("/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD/")
 
 #Upload fonctions isICD, Guiones and ICD_GBD
@@ -97,6 +98,21 @@ IM[IM[,1]=="C0242656",3:5] <- c("manual_rep",NA,NA)
 #We supress it
 IM[IM[,1]=="C0687702",3:5] <- c("manual_rep",NA,NA)
 
+#Concept "C0206655": Alveolar rhabdomyosarcoma
+#Appears after indexing of text "Arm" in MetaMap
+#Was projected to Neoplasms
+#We suppress that projection
+IM[IM[,1]=="C0206655",3:5] <- c("manual_rep",NA,NA)
+
+#Concept "C0022865": Obstetric Labor Complications
+#Mapped to Disorder of the genitourinary system (C0080276: N00-N99)
+#      AND Complication of labor and delivery, unspecified (C0269815: O60-O75.9)
+#It corresponds only to the second concept (to GBD Maternal disorders)
+IM[IM[,1]=="C0022865",3:5] <- c("manual_rep","C0269815","Complication of labor and delivery, unspecified")
+
+#Concept "C0022876": Premature Obstetric Labor
+#Idem than concept "C0022865"
+IM[IM[,1]=="C0022876",] <- c("manual_rep","C0269815","Complication of labor and delivery, unspecified")
 
 IM <- data.frame(IM)
 
@@ -160,7 +176,7 @@ Mgbd <- read.table("./Databases/Taxonomy_RL/GBD_data/GBD_ICD.txt")
 ################
 #For each UMLS_ICD concept, we divide the ICDs in individual ICDs, and map each on to a GBD
 #We use the ICD_GBD program
-t0 <- proc.time()
+
 MTUM <- do.call(rbind,
 by(UM,UM$V1,function(U){
 
@@ -175,8 +191,6 @@ do.call(rbind,
 ))
 })#By CUIout
 )
-t1 <- proc.time() - t0
-#5.2 minutes
 
 MTUM <- as.matrix(MTUM)
 
@@ -215,7 +229,6 @@ table(unlist(strsplit(as.character(IM$CUI_out[!is.na(IM$CUI_out)]),";"))%in%MTUM
 #17030
 #OK, all outputs from IntraMap are in UMLS_ICD
 
-t0 <- proc.time()
 L <- by(IM,IM$CUI_inp,function(x){
 
 mm <- unlist(strsplit(as.character(x$CUI_out),";"))
@@ -239,8 +252,6 @@ return(d)
 })
 
 MTIM <- do.call(rbind,L)
-t1 <- proc.time() - t0
-#7.5 minutes
 
 write.table(MTIM,"./Databases/Taxonomy_RL/IntraMap_ICD10_GBD.txt")
 
@@ -265,7 +276,6 @@ Mgbd <- read.table("./Databases/Taxonomy_DL/GBD_data/GBD_ICD.txt")
 ################
 #For each UMLS_ICD concept, we divide the ICDs in individual ICDs, and map each on to a GBD
 #We use the ICD_GBD program
-t0 <- proc.time()
 MTUM <- do.call(rbind,
 by(UM,UM$V1,function(U){
 
@@ -280,8 +290,6 @@ do.call(rbind,
 ))
 })#By CUIout
 )
-t1 <- proc.time() - t0
-#4.5 minutes
 
 MTUM <- as.matrix(MTUM)
 
@@ -320,7 +328,6 @@ table(unlist(strsplit(as.character(IM$CUI_out[!is.na(IM$CUI_out)]),";"))%in%MTUM
 #17029
 #OK, all outputs from IntraMap are in UMLS_ICD
 
-t0 <- proc.time()
 L <- by(IM,IM$CUI_inp,function(x){
 
 mm <- unlist(strsplit(as.character(x$CUI_out),";"))
@@ -344,8 +351,6 @@ return(d)
 })
 
 MTIM <- do.call(rbind,L)
-t1 <- proc.time() - t0
-#5.5 minutes
 
 write.table(MTIM,"./Databases/Taxonomy_DL/IntraMap_ICD10_GBD.txt")
 
@@ -367,4 +372,8 @@ MTJD$GBD <- as.character(unlist(lapply(mtjd,function(x){ifelse(x==0,0,which(Mgbd
 
 write.table(MTJD,"./Databases/Taxonomy_DL/Expert_based_UMLS_GBD.txt")
 
+t1 <- proc.time()
+(t1-t0)/60
+#    user   system  elapsed 
+#38.42637  0.08525 38.57837
 
