@@ -1,0 +1,132 @@
+#Processing of text as formatted in 2-Formatting_for_MetaMap_implementation
+#Needs installing MetaMap
+#Here, we conduct MetaMap with the WSD server
+#Modify on the version of MetaMap and UMLS knowledge source used (here metamap14, UMLS 2014AB)
+
+#In the terminal: open metamap and wsd servers
+sudo /path_to_metamap_folder/public_mm/bin/skrmedpostctl start
+sudo /path_to_metamap_folder/public_mm/bin/wsdserverctl start
+
+#Then, in R
+############
+x <- "/opt/public_mm/bin/metamap14"
+opts <- "-J acab,anab,comd,cgab,dsyn,emod,inpo,mobd,neop,patf,sosy -AvN -V USAbase -y -Z 2014AB"
+#To do it without the WSD server:
+#opts <- "-J acab,anab,comd,cgab,dsyn,emod,inpo,mobd,neop,patf,sosy -AvN -V USAbase -Z 2014AB"
+
+#Brief Title
+t0 <- proc.time()
+inp <- "path_to_folder/MetaMap/brief_title_input.txt"
+t0 <- proc.time()
+system2(x,args=c(opts,inp))
+t1 <- proc.time() - t0
+
+#Official title
+t0 <- proc.time()
+inp <- "path_to_folder/MetaMap/official_title_input.txt"
+system2(x,args=c(opts,inp))
+t2 <- proc.time() - t0
+
+#Condition
+t0 <- proc.time()
+inp <- "path_to_folder/MetaMap/condition_input.txt"
+system2(x,args=c(opts,inp))
+t3 <- proc.time() - t0
+
+(t1+t2+t3)/3600
+#In my PC takes 17h for 120k clinical trials
+
+######################################################################################################
+#Formatting MetaMap output
+
+#Brief_title
+t0 <- proc.time()
+
+inp <- "path_to_folder/MetaMap/brief_title_input.txt"
+mp <- readLines(paste(inp,".out",sep=""))
+
+MPmmi <- unlist(strsplit(paste(mp[intersect(setdiff(grep("|MMI|",mp,fixed=TRUE),grep("|AA|",mp,fixed=TRUE)),grep("00000000",mp,ignore.case=TRUE))]," ",sep=""),"|",fixed=TRUE))
+MPmmi <- matrix(MPmmi,ncol=10,byrow=TRUE)
+MPmmi <- data.frame(MPmmi)
+MPmmi$pos <- intersect(setdiff(grep("|MMI|",mp,fixed=TRUE),grep("|AA|",mp,fixed=TRUE)),grep("00000000",mp,ignore.case=TRUE))
+
+NCTpos <- grep("^pbky",mp)
+pss <- gregexpr(pattern ='[]',mp[NCTpos],fixed=TRUE)
+NCTX <- substr(mp[NCTpos],1,unlist(pss)-2)
+MPmmi$NCT <- NA
+
+for(i in 1:nrow(MPmmi)){
+MPmmi$NCT[i] <- gsub(" ","",substr(mp[max(NCTpos[NCTpos<MPmmi$pos[i]])],1,unlist(lapply(strsplit(mp[max(NCTpos[NCTpos<MPmmi$pos[i]])],""),function(x){which(x==" ")[1]}))))
+}
+t1 <- proc.time() - t0
+
+write.table(MPmmi,"path_to_folder/MetaMap/brief_title_table.txt")
+
+#Official_title
+t0 <- proc.time()
+
+inp <- "path_to_folder/official_title_input.txt"
+mp <- readLines(paste(inp,".out",sep=""))
+
+MPmmi <- unlist(strsplit(paste(mp[intersect(setdiff(grep("|MMI|",mp,fixed=TRUE),grep("|AA|",mp,fixed=TRUE)),grep("00000000",mp,ignore.case=TRUE))]," ",sep=""),"|",fixed=TRUE))
+MPmmi <- matrix(MPmmi,ncol=10,byrow=TRUE)
+MPmmi <- data.frame(MPmmi)
+MPmmi$pos <- intersect(setdiff(grep("|MMI|",mp,fixed=TRUE),grep("|AA|",mp,fixed=TRUE)),grep("00000000",mp,ignore.case=TRUE))
+
+NCTpos <- grep("^pbky",mp)
+pss <- gregexpr(pattern ='[]',mp[NCTpos],fixed=TRUE)
+NCTX <- substr(mp[NCTpos],1,unlist(pss)-2)
+MPmmi$NCT <- NA
+
+for(i in 1:nrow(MPmmi)){
+MPmmi$NCT[i] <- gsub(" ","",substr(mp[max(NCTpos[NCTpos<MPmmi$pos[i]])],1,unlist(lapply(strsplit(mp[max(NCTpos[NCTpos<MPmmi$pos[i]])],""),function(x){which(x==" ")[1]}))))
+}
+t2 <- proc.time() - t0
+
+write.table(MPmmi,"path_to_folder/MetaMap/Official_title_table.txt")
+
+#Condition
+t0 <- proc.time()
+
+inp <- "path_to_folder/MetaMap/condition_input.txt"
+mp <- readLines(paste(inp,".out",sep=""))
+
+MPmmi <- unlist(strsplit(paste(mp[intersect(setdiff(grep("|MMI|",mp,fixed=TRUE),grep("|AA|",mp,fixed=TRUE)),grep("00000000",mp,ignore.case=TRUE))]," ",sep=""),"|",fixed=TRUE))
+MPmmi <- matrix(MPmmi,ncol=10,byrow=TRUE)
+MPmmi <- data.frame(MPmmi)
+MPmmi$pos <- intersect(setdiff(grep("|MMI|",mp,fixed=TRUE),grep("|AA|",mp,fixed=TRUE)),grep("00000000",mp,ignore.case=TRUE))
+
+NCTpos <- grep("^pbky",mp)
+pss <- gregexpr(pattern ='[]',mp[NCTpos],fixed=TRUE)
+NCTX <- substr(mp[NCTpos],1,unlist(pss)-2)
+MPmmi$NCT <- NA
+
+for(i in 1:nrow(MPmmi)){
+MPmmi$NCT[i] <- gsub(" ","",substr(mp[max(NCTpos[NCTpos<MPmmi$pos[i]])],1,unlist(lapply(strsplit(mp[max(NCTpos[NCTpos<MPmmi$pos[i]])],""),function(x){which(x==" ")[1]}))))
+}
+t3 <- proc.time() - t0
+
+write.table(MPmmi,"path_to_folder/MetaMap/Condition_table.txt")
+
+(t1+t2+t3)/60
+#In my PC, 25min for 120k trials
+
+#Total table sans Mehdi
+
+BN <- read.table("path_to_folder/MetaMap/brief_title_table.txt")
+ON <- read.table("path_to_folder/MetaMap/Official_title_table.txt")
+CN <- read.table("path_to_folder/MetaMap/Condition_table.txt")
+
+BN$typ <- "brief"
+ON$typ <- "off"
+CN$typ <- "cond"
+
+TN <- rbind(BN,ON)
+CN$X3 <- factor(CN$X3)
+TN <- rbind(TN,CN)
+TN$meth <- "Yes"
+#If you don't use the Word Sense Disambiguation server, change this for "No"
+
+write.table(TN,"path_to_folder/MetaMap/MMap_tot.txt")
+
+

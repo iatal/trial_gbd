@@ -1,0 +1,6 @@
+#After you have 
+#1- extracted data from clinical trials records
+#2 and 3- processed them with MetaMap
+#4- called IntraMap for new concepts appearing in your database (and not included already in the database of the classifier)
+#4- and updated the databases underlying the classifier (if an IntraMap call was needed)
+#you are ready to use the classifier

@@ -1,0 +1,68 @@
+#Extracting data from clinical trial records
+#Codes for extracting data from trials downloaded at both WHO ICTRP and CT.gov
+#Needs R package XML
+
+#WHO ICTRP
+##################################################################
+#File of type ICTRP-Results.xml
+#(Export results as XML, Export all trials to XML)
+library(XML)
+
+xml.url <- "/path/to/xml/ICTRP-Results.xml"
+xmlfile <- htmlTreeParse(xml.url,useInternal=TRUE)
+xmltop <- xmlRoot(xmlfile)
+
+x <- xmltop[["body"]]
+xx <- x[["trials_downloaded_from_ictrp"]]
+Trials <- xx[["trial"]]
+df<-xmlToDataFrame(xx,nodes=Trials)
+
+DF <- as.matrix(df)
+DF <- gsub("\\\\","",DF)
+DF <- data.frame(DF)
+#In this file, elements from the condition field are separated by ";"
+#Only fields of interest: trialid, public_title, scientific_title, condition
+
+write.table(DF,"/path/to/xml/ICTRP-Results_df.txt")
+
+#Clinicaltrials.gov
+##########################################################################
+#Folder of type search_result (unzipped), containing NCT(s).xml
+#(download all study fields as XML)
+
+library(XML)
+
+dnct <- list.files("/path/to/folder/search_result")
+
+N <- length(dnct)
+brief_title <- rep(NA,N)
+official_title<- rep(NA,N)
+condition<-rep(NA,N)
+
+for(i in 1:N){
+
+	xml.url <- paste("/path/to/folder/search_result/",as.character(dnct[i]$NCT[i]),sep="")
+	xmlfile <- xmlTreeParse(xml.url,useInternal=TRUE)
+	xmltop <- xmlRoot(xmlfile)
+
+	brief_title[i] <- paste(unlist(tryCatch(xpathApply(xmltop,"//brief_title",fun=xmlValue),error=function(e) {"NA"})),collapse=" && ")
+	official_title[i] <- paste(unlist(tryCatch(xpathApply(xmltop,"//official_title",fun=xmlValue),error=function(e) {"NA"})),collapse=" && ")
+	#Elements from the condition field (list) are separated by a " && "
+	condition[i] <- paste(unlist(tryCatch(xpathApply(xmltop,"//condition",fun=xmlValue),error=function(e) {"NA"})),collapse=" && ")
+
+}
+
+brief_title <- gsub("\\\\","",brief_title)
+official_title <- gsub("\\\\","",official_title)
+condition <- gsub("\\\\","",condition)
+
+#Checking output OK
+table(is.na(brief_title))
+
+D <- data.frame(trialid = substr(dnct,1,11),
+		brief_title = brief_title,
+		official_title = official_title,
+		condition = condition)
+
+write.table(D,"/path/to/folder/search_result.txt")
+

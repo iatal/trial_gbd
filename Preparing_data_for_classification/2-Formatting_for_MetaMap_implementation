@@ -1,0 +1,77 @@
+#Formatting for MetaMap input
+#Based on output from program 1-Extracting_data_from_records
+#Depends on using ICTRP or CT.gov
+#You must create a folder MetaMap in your working folder
+#In this program we do:
+#1- Creation of a code for each trial (without punctuation)
+#2- Separation of sentences
+#3- Separation of elements from condition field to process then individually
+
+data <- read.table("/path_to_dataframe")
+
+#Code creation
+data$PMID <- gsub("[[:punct:]]","",as.character(data$trialid))
+#Checking if duplicates
+table(duplicated(data$PMID))
+
+#Brief Title
+br <- as.character(data$public_title)
+#if CT.gov:
+#br <- as.character(data$brief_title)
+Encoding(br) <- "latin1"
+br <- iconv(br,"latin1","ASCII",sub="")
+br <- gsub("\\\\","/ ",br)
+br <- gsub("<br>"," ",br)
+br <- gsub("\\n",". ",br)
+br <- gsub("&&",". ",br)
+br <- gsub("\\t",". ",br)
+br <- gsub(";",". ",br)
+br <- gsub("[ ]+"," ",br)
+
+#Adding code to data to be processed to follow processing
+br <- paste(paste("PBKY",data$PMID,sep=""),br,sep="&&")
+
+br2 <- unlist(lapply(br,function(x){strsplit(x,"&&",fixed=TRUE)}))
+
+write.table(br2, "path_to_folder/MetaMap/brief_title_input.txt", eol = "\n\n", row.names=FALSE, col.names=FALSE)
+
+#Official title
+br <- as.character(data$scientific_title)
+#if CT.gov
+#br <- as.character(data$official_title)
+Encoding(br) <- "latin1"
+br <- iconv(br,"latin1","ASCII",sub="")
+br <- gsub("\\\\","/ ",br)
+br <- gsub("<br>"," ",br)
+br <- gsub("\\n",". ",br)
+br <- gsub("&&",". ",br)
+br <- gsub("\\t",". ",br)
+br <- gsub(";",". ",br)
+br <- gsub("[ ]+"," ",br)
+
+br <- paste(paste("PBKY",data$PMID,sep=""),br,sep="&&")
+
+br2 <- unlist(lapply(br,function(x){strsplit(x,"&&",fixed=TRUE)}))
+
+write.table(br2, "path_to_folder/MetaMap/official_title_input.txt", eol = "\n\n", row.names=FALSE, col.names=FALSE)
+
+#Condition
+br <- as.character(data$condition)
+Encoding(br) <- "latin1"
+br <- iconv(br,"latin1","ASCII",sub="")
+br <- gsub("\\\\","/ ",br)
+br <- gsub("<br>"," ",br)
+br <- gsub("\\n",". ",br)
+br <- gsub("&&",". ",br)
+br <- gsub(";",". ",br)
+br <- gsub("\\t",". ",br)
+br <- gsub("[ ]+"," ",br)
+
+br <- paste(paste("PBKY",data$PMID,sep=""),br,sep="&&")
+
+br2 <- unlist(lapply(br,function(x){strsplit(x,"&&",fixed=TRUE)}))
+#We will process separately each sentence (element in list) of the condition field
+br2 <- unlist(lapply(br2,function(x){strsplit(x,". ",fixed=TRUE)}))
+
+write.table(br2, "path_to_folder/MetaMap/condition_input.txt", eol = "\n\n", row.names=FALSE, col.names=FALSE)
+
