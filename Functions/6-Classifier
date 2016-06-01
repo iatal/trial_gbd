@@ -1,43 +1,26 @@
-#Fonction qui renvoit, en fonction d'un input (NCTs,MMap), en fonction de l'output du training, à savoir MTc (IntraMap donné par alpha dans training) et svm_mod: modèle svm, et en fonction de quelques paramètres: wsd_classif: utilise-t-on les données wsd pour la classification (prédiction svm du test set + classification GBD)
+#Fonction qui renvoit, en fonction d'un input (NCTs,MMap), en fonction de IntraMap + EB (MTc)
+#En fonction de wsd="Yes" or "No" dans MMap$meth
+#En fonction de COND = TRUE or FALSE: on donne priorité au condition field?
 #data nécessite avoir PMID connecté à MMap
-#et brief_ off_ cond pour Nb_mots
-#Rq: wsd_classif = Yes ou No pas de wsd Duo car on va prédire la classif pour un seul
-#On ne prédit que pour les essais sans GBD
 
-classifier <- function(tsdt,Mts,MTc,wsd,svm_mod_wrong,COND,COND_only){
+classifier <- function(data,MMap,MTc,wsd,COND){
 
-NCTs <- as.character(tsdt$PMID)
-
-A <- Test_add_MT_classif(NCTs,Mts,MTc)
-if(A[[1]]==FALSE) return(A[[3]])
-
-MC <- CUI_charac(Mgbd, Egbd, Mts, MTc)
+#On a déjà testé IntraMap
+MC <- CUI_mapping(MMap, MTc)
 
 #On fait le processing pour chaque essai pour wsd
+NCTs <- tolower(as.character(data$PMID))
 i <- 1
 NCT <- paste("pbky",NCTs[i],sep="")
-D <- Trial_charac(Mgbd,Egbd,NCT,Mts,MC,wsd,COND)
+D <- Trial_mapping(NCT,MMap,MC,wsd,COND)
 for(i in 2:length(NCTs)){
 NCT <- paste("pbky",NCTs[i],sep="")
-D <- rbind(D,Trial_charac(Mgbd,Egbd,NCT,Mts,MC,wsd,COND))
+D <- rbind(D,Trial_mapping(NCT,MMap,MC,wsd,COND))
 }
-#30s pour 1500 essais
-
 D <- data.frame(D,row.names=NULL)
-D <- cbind(D,Nb_mots_chp(tsdt))
 
-ifelse(COND_only,gbd <- as.character(D$cond_GBD),gbd <- as.character(D$Ess_GBD))
-
-#On enlève les GBD group lists et transforme tout en chiffres pour modèle prédictif
-D <- D[,-grep("_GBD$",names(D))]
-D <- sapply(D,function(x){as.numeric(as.character(x))})
-
-#Cas SVM vs No SVM
-#Prédiction de WrongGBD
-if(length(svm_mod_wrong)!=0) wrong_gbd <- lapply(svm_mod_wrong,function(mdl){predict(mdl,D)})
-else wrong_gbd <- NULL
-
-return(list(gbd,wrong_gbd,D))
+gbd <- as.character(D$Ess_GBD)
+return(gbd)
 
 }
 

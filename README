@@ -2,8 +2,6 @@
 
 #Pour création de IntraMap output en fonction de CUI_out-map ou CUI_out-map à la main: regarder TrialBurdenUMLS/9-IntraMap_output
 
-#Expert-based enrichment is conducted using GBD taxonomy 171
-
 #Rq: MTIM a CUI_out = NA pour concepts non mappés par IntraMap
 #Et MTJD a CUI_out = NA aussi
 
@@ -13,5 +11,4 @@
 
 #Manque mettre les conditions d'arrêt si erreur dans Input, ou si manque inclusion de data
 
-#Tester Emdin et JDZ séparément
 

@@ -1,0 +1,36 @@
+#Uploading classifier
+setwd('/home/igna/Desktop/Programs GBD/Classifier_Trial_GBD')
+library(gdata)
+library(e1071)
+for(x in list.files("./Functions","[a-zA-Z]$")) source(paste("./Functions/",x,sep=""))
+
+#Taxonomy choice:
+#DL: 28-class grouping of GBD categories
+#RL: 171-class grouping of GBD categories
+Tax <- "DL"
+L <- Data_upl(Tax)
+Mgbd <- L[[1]]
+Egbd <- L[[2]]
+MT <- L[[3]]
+MTEB <- L[[4]]
+remove(L)
+
+#Options:
+#eb: expert-based enrichment: TRUE or FALSE
+eb <- TRUE
+#wsd: Word Sense Disambiguation server in MetaMap: "Yes" or "No"
+wsd <- "Yes"
+#COND: Priority to the condition field: TRUE or FALSE
+COND <- TRUE
+
+#Uploading formatted data: MetaMap output and clinical trial data
+MMap <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/MMap_tot.txt")
+data <- read.table("/media/igna/Elements/HotelDieu/Cochrane/MetaMapBurden/Trial_Burden_Param/NCT_data_tot_disag.txt")
+
+#Classification
+A <- Test_add_MT(MMap,MT,eb,MTEB)
+MTc <- A[[2]]
+gbd <- classifier(data,MMap,MTc,wsd,COND)
+
+
+

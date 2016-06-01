@@ -112,7 +112,7 @@ IM[IM[,1]=="C0022865",3:5] <- c("manual_rep","C0269815","Complication of labor a
 
 #Concept "C0022876": Premature Obstetric Labor
 #Idem than concept "C0022865"
-IM[IM[,1]=="C0022876",] <- c("manual_rep","C0269815","Complication of labor and delivery, unspecified")
+IM[IM[,1]=="C0022876",3:5] <- c("manual_rep","C0269815","Complication of labor and delivery, unspecified")
 
 IM <- data.frame(IM)
 
@@ -325,7 +325,7 @@ write.table(MTUM,"./Databases/Taxonomy_DL/UMLS_ICD10_GBD.txt")
 #For each IntraMap input, we find all the mapped UMLS_ICD concepts and the corresponding GBDs
 table(unlist(strsplit(as.character(IM$CUI_out[!is.na(IM$CUI_out)]),";"))%in%MTUM$CUIout)
 # TRUE 
-#17029
+#23808
 #OK, all outputs from IntraMap are in UMLS_ICD
 
 L <- by(IM,IM$CUI_inp,function(x){

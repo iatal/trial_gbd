@@ -1,9 +1,11 @@
-#This function tests, depending on the considered NCTs and the MetaMap output (MMap), on the IntraMap and Expert-based data in memory (already uploaded),
-#and on the threshold alpha, if it is necessary to rerun IntraMap or to manually map concepts to GBD
-#If there is no need to rerun IntraMap or Expert-based enrichment, the output is the total matrix UMLS_GBD
-#This function is used for the training of the classifier
+#This function tests, depending on the MetaMap output (MMap), 
+#on the IntraMap data in memory (already uploaded)
+#if it is necessary to rerun IntraMap
+#If there is no need to rerun IntraMap, the output is the total matrix UMLS_GBD
+#Output depends on eb=TRUE if expert-based enrichment database to be considered
+#		   eb=FALSE if expert-based enrichment database not to be considered
 
-#Output = FALSE if needs IntraMap or EB enrichment
+#Output = FALSE if needs IntraMap
 #	  + NULL
 #	  + list of concepts to be mapped
 #	= TRUE if no need
@@ -11,67 +13,42 @@
 #	  + NULL
 
 #Needs library(gdata)
-#Rq: alpha = percentage of nrow(MMap), MetaMap output using WSD and not WSD servers
 
-Test_add_MT <- function(NCTs,MMap,MT,MTEB,alpha){
+Test_add_MT <- function(MMap,MT,eb,MTEB){
 
-	#NCTs: liste des NCTs
-	#MMap: output MetaMap pour le NCTs listés
-	#MT: données UMLS+IntraMap
-	#MTEB: données UMLS_GBD_manuel
+	#MMap: output MetaMap
+	#MT: data UMLS+IntraMap in memory
+	#eb: using expert-based enrichment?
+	#MTEB: expert-based enrichment database
 
 	CUI <- unique(MMap$X5)
 
-	#IntraMap checking: est-ce que tous les CUIs ont été intramappés
-	#Erreur et donner liste pour IntraMap
+	#All CUI output from Intramap are in UMLS_ICD10 or already mapped with IntraMap?
+	#If not: Error and list CUIs for IntraMap
 	if(sum(!CUI%in%MT$CUIinp)!=0) {
-		print(paste(c("nb trials = ", length(NCTs), ", alpha = ", alpha ,". Need running IntraMap for ",sum(!CUI%in%MT$CUIinp)," concepts"),collapse=""))
+		print(paste(c("Error: Need running IntraMap for ",sum(!CUI%in%MT$CUIinp)," concepts"),collapse=""))
 		return(list(FALSE,NULL,CUI[!CUI%in%MT$CUIinp]))
 		}
 
+	#Restriction of UMLS and IntraMap to CUIs output MetaMap
 	MTut <- droplevels(MT[MT$CUIinp%in%CUI,])
+
+	#Expert-based enrichment:
+	if(eb==TRUE){
+	#If using expert-based enrichment: choosing among MTEB database, CUIs without GBD in MTut
 	gbty <- unlist(tapply(MTut$GBD,MTut$CUIinp,function(x){length(unique(x[!is.na(x)]))}))
 	nogbd <- names(gbty[gbty==0])
-	fnogbd <- unlist(lapply(nogbd,function(x){sum(MMap$X5==x)}))
-
-	#Manual work checking: est-ce que tous les cui no gbd avec freq sup alpha ont ete manuellement mappés
-	#Erreur et donner liste pour manuel
-	if(alpha != 0 & sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%MTEB$CUIinp) !=0) {
-		print(paste(c("nb trials = ", length(NCTs), ", alpha = ", alpha ,". Need manual validation of ",sum(!nogbd[fnogbd>=alpha*nrow(MMap)]%in%MTEB$CUIinp)," concepts"),collapse=""))
-		return(list(FALSE,NULL,nogbd[fnogbd>=alpha*nrow(MMap) & !nogbd%in%MTEB$CUIinp]))
+	MTEBut <- droplevels(MTEB[MTEB$CUIinp%in%nogbd,])
+	#CREATION DE MTc
+	MTc <- data.frame(rbind(as.matrix(MTut),as.matrix(MTEBut)))
+	MTc$CUIinp <- reorder(MTc$CUIinp,sort(levels(MTc$CUIinp)))
 	}
 
-	MTEBfalpha <- droplevels(MTEB[MTEB$CUIinp%in%nogbd[fnogbd>=alpha*nrow(MMap)],])
-
-	#CREATION DE MTc
-	MTc <- data.frame(rbind(as.matrix(MT),as.matrix(MTEBfalpha)))
+	else{ MTc <- MTut
 	MTc$CUIinp <- reorder(MTc$CUIinp,sort(levels(MTc$CUIinp)))
+	}
 
 	return(list(TRUE,MTc,NULL))
 
 }
-
-#################################################
-#This function tests if there is a need to rerun IntraMap uniquement
-#It is used for the classification
-
-Test_add_MT_classif <- function(NCTs,MMap,MTc){
-
-	#NCTs: liste des NCTs
-	#MMap: output MetaMap pour le NCTs listés
-	#MTc: données UMLS_IntraMap+EB_UMLS_GBD créé pendant le training
-
-	CUI <- unique(MMap$X5)
-
-	#IntraMap checking: est-ce que tous les CUIs ont été intramappés
-	#Erreur et donner liste pour IntraMap
-	if(sum(!CUI%in%MTc$CUIinp)!=0) {
-		print(paste(c("nb trials = ", length(NCTs), ". Need running IntraMap for ",sum(!CUI%in%MTc$CUIinp)," concepts"),collapse=""))
-		return(list(FALSE,CUI[!CUI%in%MTc$CUIinp]))
-		}
-
-	return(list(TRUE,NULL))
-
-}
-
 

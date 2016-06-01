@@ -1,17 +1,3 @@
-
-##########################################################################################
-#Fonction donnant le noeud commun à une liste de gbds
-#######################################################
-
-Noeud_comm <- function(Egbd,lis){
-	#input: liste de GBDs (noms)
-	L <- unique(Egbd[Egbd$cause_name %in% lis,]$level)
-	if(length(L)>1) return(Noeud_comm(Egbd,unique(union(setdiff(lis,as.character(Egbd[Egbd$cause_name %in% lis & Egbd$level==max(L),]$cause_name)),as.character(Egbd[Egbd$cause_name %in% lis & Egbd$level==max(L),]$parent)))))
-	else{ if(length(lis)>1) return(Noeud_comm(Egbd,unique(as.character(Egbd[Egbd$cause_name %in% lis,]$parent))))
-	else return(lis)
-	}
-}
-
 ########################################################################################
 #Fonction prenant UN cui_inp et donnant la liste des gbds par imbrication gbds des cui_out en donnant la même importance aux GBDmult de même taille
 ###########################################################################################
@@ -130,45 +116,4 @@ scoring_gbd <- function(LL,cond=FALSE){
 	}#end else cond = TRUE
 	return(tu)
 }
-
-##############################################
-#Recouvrement
-#Pour une liste de concepts donnés, donne le pourcentage de couples de concepts tels que intersection GBD est non vide
-#############################################
-
-recouv <- function(lista,MT){
-	sm <- 0
-	nb <- 1
-	L <- lapply(lista,function(x){cuiinp_gbdl(x,MT)})
-	tL <- unlist(lapply(L,length))
-	if(sum(tL!=0)>=2){
-	tm <- L[tL>=1]
-	nb <- length(tm)*(length(tm)-1)/2
-	for(i in 1:(length(tm)-1)){
-	for(j in (i+1):length(tm)){
-	sm <- sm + as.numeric(length(intersect(tm[[i]],tm[[j]]))>0)
-	}}
-	}
-	return(sm/nb)
-}
-
-###########
-#Recouvrement pour une liste de liste de GBDs donnés (pour tester recouvrement entre champs)
-#Si un seul élément, on renvoie 1
-recouv_gbds <- function(lista){
-	sm <- 0
-	nb <- 1
-	tL <- unlist(lapply(lista,length))
-	if(sum(tL!=0)==1) return(1)
-	if(sum(tL!=0)>=2){
-	tm <- lista[tL>=1]
-	nb <- length(tm)*(length(tm)-1)/2
-	for(i in 1:(length(tm)-1)){
-	for(j in (i+1):length(tm)){
-	sm <- sm + as.numeric(length(intersect(tm[[i]],tm[[j]]))>0)
-	}}
-	}
-	return(sm/nb)
-}
-
 
