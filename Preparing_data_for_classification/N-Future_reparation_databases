@@ -1,3 +1,8 @@
+Identification of UMLS concepts not correctly mapped to GBD because of:
+-either MetaMap consistently misunderstand a word and identify a concept mapped to GBD
+-either IntraMap conduct a wrong mapping leading to a wrong mapping to GBD
+###########################################################################################
+
 Concept C0238284 Acute mountain sickness envoyé par IntraMap vers
             E88.9                           Metabolic disorder, unspecified   3
 327859  E70-E90.9                                       Metabolic disorders   3

@@ -3,16 +3,10 @@
 #Depends on using ICTRP or CT.gov
 #You must create a folder MetaMap in your working folder
 #In this program we do:
-#1- Creation of a code for each trial (without punctuation)
-#2- Separation of sentences
-#3- Separation of elements from condition field to process then individually
+#1- Separation of sentences
+#2- Separation of elements from condition field to process then individually
 
-data <- read.table("/path_to_dataframe")
-
-#Code creation
-data$PMID <- gsub("[[:punct:]]","",as.character(data$trialid))
-#Checking if duplicates
-table(duplicated(data$PMID))
+data <- read.table("/path_to_folder/data_trials.txt")
 
 #Brief Title
 br <- as.character(data$public_title)

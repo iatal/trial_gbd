@@ -154,11 +154,11 @@ write.table(D,paste(c("path_to_folder/IntraMap/IntraMap_output",(N+1),".txt"),co
 #####################################################################################################
 #3- Adding New IntraMap data to the classifier
 #The file you just created (IntraMap_output",(N+1),".txt") includes the mapping to ICD10 of UMLS concepts that were not yet included in the classifier
-#This data must be included to the classifier:
+#This data must be included to the classifier
 
 #First, you must copy paste the file to the folder of the classifier: 
 #'/path_to_classifier/Classifier_Trial_GBD/Databases/CUI_GBD/IntraMap_output/'
 
-#Second, you must update the classifier by running the program '/path_to_classifier/Classifier_Trial_GBD/Databases_creation'
-#And update the number of IntraMap calls appearing in the heading of the 'Databases_creation' script
+#Second, you must update the classifier by running the following script '/path_to_classifier/Classifier_Trial_GBD/Preparing_data_for_classification/5-Classifier_update_and_Databases_creation'
+#And update the number of IntraMap calls appearing in the heading of the '5-Classifier_update_and_Databases_creation' script
 #This update takes about 30 minutes.

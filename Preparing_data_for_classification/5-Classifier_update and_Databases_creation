@@ -1,11 +1,12 @@
 #Main program creating the databases mapping UMLS concepts to GBD depending on the GBD taxonomy used
-#This program supports two GBD taxonomies: Ranking_list (RL) and Disag_list (DL)
+#This program supports two GBD taxonomies: Ranking_list (RL: 171-class grouping of the GBD cause list) and Disag_list (DL: 28-class grouping of the GBD cause list)
+#This program must be rerunned each time there is a new IntraMap call, and new IntraMap data is added to the folder '/path_to_classifier/Classifier_Trial_GBD/Databases/CUI_GBD/IntraMap_output/'
 
 #Input databases are the following:
 ######
 #Folder CUI_GBD:
 #data_UMLS_ICD.txt: has all the UMLS concepts having ICD10 codes
-#Expert_based_enrichment: manual classification of UMLS concepts to the Ranking_list GBD taxonomy: Up to date: 3 manual classifications
+#Expert_based_enrichment: manual classification of UMLS concepts to the Ranking_list GBD taxonomy: Up to date: data from 3 manual classifications
 #IntraMap_output: IntraMap output of UMLS concepts not appearing in the data_UMS_ICD.txt database: Up to date: 11 IntraMap calls
 
 #Folders Taxonomy_RL and _DL

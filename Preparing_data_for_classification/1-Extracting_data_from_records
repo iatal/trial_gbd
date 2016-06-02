@@ -1,6 +1,8 @@
 #Extracting data from clinical trial records
 #Codes for extracting data from trials downloaded at both WHO ICTRP and CT.gov
 #Needs R package XML
+#This program will create the dataframe data_trials.txt including one line per trial
+#And will Create a unique code for each trial (without punctuation) (PMID)
 
 #WHO ICTRP
 ##################################################################
@@ -8,7 +10,7 @@
 #(Export results as XML, Export all trials to XML)
 library(XML)
 
-xml.url <- "/path/to/xml/ICTRP-Results.xml"
+xml.url <- "/path_to_folder/ICTRP-Results.xml"
 xmlfile <- htmlTreeParse(xml.url,useInternal=TRUE)
 xmltop <- xmlRoot(xmlfile)
 
@@ -23,7 +25,12 @@ DF <- data.frame(DF)
 #In this file, elements from the condition field are separated by ";"
 #Only fields of interest: trialid, public_title, scientific_title, condition
 
-write.table(DF,"/path/to/xml/ICTRP-Results_df.txt")
+#Unique Code per trial creation
+DF$PMID <- gsub("[[:punct:]]","",as.character(DF$trialid))
+#Checking if duplicates
+table(duplicated(DF$PMID))
+
+write.table(DF,"/path_to_folder/data_trials.txt")
 
 #Clinicaltrials.gov
 ##########################################################################
@@ -32,7 +39,7 @@ write.table(DF,"/path/to/xml/ICTRP-Results_df.txt")
 
 library(XML)
 
-dnct <- list.files("/path/to/folder/search_result")
+dnct <- list.files("/path_to_folder/search_result")
 
 N <- length(dnct)
 brief_title <- rep(NA,N)
@@ -64,5 +71,10 @@ D <- data.frame(trialid = substr(dnct,1,11),
 		official_title = official_title,
 		condition = condition)
 
-write.table(D,"/path/to/folder/search_result.txt")
+#Unique Code per trial creation
+D$PMID <- gsub("[[:punct:]]","",as.character(D$trialid))
+#Checking if duplicates
+table(duplicated(D$PMID))
+
+write.table(D,"/path_to_folder/data_trials.txt")
 
