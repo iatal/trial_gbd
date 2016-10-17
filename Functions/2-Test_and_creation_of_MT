@@ -41,11 +41,11 @@ Test_add_MT <- function(MMap,MT,eb,MTEB){
 	MTEBut <- droplevels(MTEB[MTEB$CUIinp%in%nogbd,])
 	#CREATION DE MTc
 	MTc <- data.frame(rbind(as.matrix(MTut),as.matrix(MTEBut)))
-	MTc$CUIinp <- reorder(MTc$CUIinp,sort(levels(MTc$CUIinp)))
+	MTc$CUIinp <- reorder(MTc$CUIinp,new.order=sort(levels(MTc$CUIinp)))
 	}
 
 	else{ MTc <- MTut
-	MTc$CUIinp <- reorder(MTc$CUIinp,sort(levels(MTc$CUIinp)))
+	MTc$CUIinp <- reorder(MTc$CUIinp,new.order=sort(levels(MTc$CUIinp)))
 	}
 
 	return(list(TRUE,MTc,NULL))
